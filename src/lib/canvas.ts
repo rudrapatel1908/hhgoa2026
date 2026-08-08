@@ -166,8 +166,8 @@ function drawText(
 // HH Goa 2026 palette — dark hacker base (matches hhgoa.com) with
 // gold/magenta accents pulled from the event's Goan motif artwork.
 const PALETTE = {
-  bgTop: "#07090C",
-  bgBottom: "#10120F",
+  bgTop: "#12150F",
+  bgBottom: "#1A1D14",
   gold: "#E8B923",
   goldDim: "#8A6E1F",
   magenta: "#D6247C",
