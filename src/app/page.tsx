@@ -1,81 +1,58 @@
-// app/card/[id]/page.tsx
-// This route exists purely so a shared link has a real page with correct
-// og:image / twitter:image meta tags — Twitter's crawler reads THIS page,
-// not the raw image URL. No DB: the blob URLs are deterministic from the id
-// because upload-card used addRandomSuffix: false.
+"use client";
 
-import type { Metadata } from "next";
-import Link from "next/link";
-import { Download } from "lucide-react";
+import { useCallback, useState } from "react";
+import UploadDropzone from "@/components/UploadDropzone";
+import BuilderForm, { BuilderInfo } from "@/components/BuilderForm";
+import CardPreview from "@/components/CardPreview";
+import ShareButtons from "@/components/ShareButtons";
 
-// Set this once, right after your first successful upload — copy the host
-// from the `cardUrl` the upload API returns, e.g.
-// https://abc123xyz.public.blob.vercel-storage.com
-const BLOB_BASE_URL = process.env.NEXT_PUBLIC_BLOB_BASE_URL ?? "";
+export default function HomePage() {
+  const [photo, setPhoto] = useState<HTMLImageElement | null>(null);
+  const [info, setInfo] = useState<BuilderInfo>({ name: "", stack: "", title: "" });
 
-function cardImageUrl(id: string) {
-  return `${BLOB_BASE_URL}/cards/${id}.png`;
-}
-function ogImageUrl(id: string) {
-  return `${BLOB_BASE_URL}/cards/${id}-og.png`;
-}
+  const handleImageReady = useCallback((img: HTMLImageElement) => {
+    setPhoto(img);
+  }, []);
 
-type Props = { params: { id: string } };
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = params;
-  const og = ogImageUrl(id);
-  const title = "I'm building at Hacker House Goa 2026";
-  const description = "Generate your own builder ID card — #FrameInGoa";
-
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      images: [{ url: og, width: 1200, height: 630 }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [og],
-    },
-  };
-}
-
-export default function CardSharePage({ params }: Props) {
-  const { id } = params;
+  const handleFormChange = useCallback((next: BuilderInfo) => {
+    setInfo(next);
+  }, []);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center gap-6 px-5 py-10 text-center">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#E8B923]">
-        Hacker House · Goa, India
-      </p>
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-8 px-5 py-10">
+      <header className="flex flex-col gap-1.5 text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#E8B923]">
+          Hacker House · Goa, India
+        </p>
+        <h1 className="text-2xl font-bold text-[#F5F2E8]">Build Your Badge</h1>
+        <p className="text-sm text-[#F5F2E8]/50">
+          Upload a photo, add your details, download your card.
+        </p>
+      </header>
 
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={cardImageUrl(id)}
-        alt="Hacker House Goa 2026 builder ID card"
-        className="w-full max-w-sm rounded-2xl border border-[#8A6E1F]/30"
-      />
+      <section className="flex flex-col gap-4">
+        <span className="text-xs font-medium uppercase tracking-wider text-[#F5F2E8]/60">
+          1. Your Photo
+        </span>
+        <UploadDropzone onImageReady={handleImageReady} />
+      </section>
 
-      <a
-        href={cardImageUrl(id)}
-        download={`hhgoa2026-${id}.png`}
-        className="flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-[#E8B923] px-6 py-3 font-semibold text-[#07090C]"
-      >
-        <Download size={18} />
-        Download this card
-      </a>
+      <section className="flex flex-col gap-4">
+        <span className="text-xs font-medium uppercase tracking-wider text-[#F5F2E8]/60">
+          2. Your Details
+        </span>
+        <BuilderForm onChange={handleFormChange} />
+      </section>
 
-      <Link
-        href="/"
-        className="text-sm font-medium text-[#F5F2E8]/60 underline underline-offset-4"
-      >
-        Build your own badge →
-      </Link>
+      <section className="flex flex-col items-center gap-4">
+        <span className="self-start text-xs font-medium uppercase tracking-wider text-[#F5F2E8]/60">
+          3. Your Card
+        </span>
+        <CardPreview photo={photo} name={info.name} title={info.title} />
+        {photo && info.name.trim() && info.title.trim() && (
+          <ShareButtons photo={photo} name={info.name} title={info.title} />
+        )}
+      </section>
     </main>
   );
 }
