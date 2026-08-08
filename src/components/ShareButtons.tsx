@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Share2, Loader2, Check, Twitter } from "lucide-react";
-import { renderCardCanvas, renderOgCanvas, canvasToBlob, CardData } from "@/lib/canvas";
+import { Share2, Loader2, Check, Send } from "lucide-react";
+import { renderCardCanvas, renderOgCanvas, canvasToBlob } from "@/lib/canvas";
+import type { CardData } from "@/lib/canvas";
 
 type Props = {
   photo: HTMLImageElement;
@@ -91,7 +92,7 @@ export default function ShareButtons({ photo, name, title }: Props) {
             rel="noopener noreferrer"
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1DA1F2] px-6 py-3 font-semibold text-white"
           >
-            <Twitter size={18} /> Share to X
+            <Send size={18} /> Share to X
           </motion.a>
         )}
       </AnimatePresence>
