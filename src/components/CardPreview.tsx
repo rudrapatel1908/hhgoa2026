@@ -16,21 +16,35 @@ export default function CardPreview({ photo, name, title }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [rendering, setRendering] = useState(false);
 
   const isReady = Boolean(photo && name.trim() && title.trim());
 
   useEffect(() => {
     if (!photo || !name.trim() || !title.trim() || !containerRef.current) return;
 
+    let cancelled = false;
+    setRendering(true);
+
     const data: CardData = { photo, name: name.trim(), title: title.trim() };
-    const canvas = renderCardCanvas(data);
 
-    canvasElRef.current = canvas;
+    renderCardCanvas(data)
+      .then((canvas: HTMLCanvasElement) => {
+        // Guards against an earlier, slower render (QR generation is async)
+        // overwriting a newer one if photo/name/title changed again mid-render.
+        if (cancelled || !containerRef.current) return;
+        canvasElRef.current = canvas;
+        canvas.className = "h-full w-full rounded-2xl object-contain";
+        containerRef.current.innerHTML = "";
+        containerRef.current.appendChild(canvas);
+      })
+      .finally(() => {
+        if (!cancelled) setRendering(false);
+      });
 
-    // Swap in the freshly rendered canvas as the preview element.
-    canvas.className = "h-full w-full rounded-2xl object-contain";
-    containerRef.current.innerHTML = "";
-    containerRef.current.appendChild(canvas);
+    return () => {
+      cancelled = true;
+    };
   }, [photo, name, title]);
 
   const handleDownload = async () => {
@@ -48,12 +62,18 @@ export default function CardPreview({ photo, name, title }: Props) {
     <div className="flex w-full flex-col items-center gap-4">
       <div
         ref={containerRef}
-        className="flex aspect-[4/5] w-full max-w-sm items-center justify-center overflow-hidden rounded-2xl border border-[#1B5A66]/30 bg-[#0E1018]"
+        className="relative flex aspect-[4/5] w-full max-w-sm items-center justify-center overflow-hidden rounded-2xl border border-[#1B5A66]/30 bg-[#0E1018]"
       >
         {!isReady && (
           <p className="px-8 text-center text-sm text-[#E8EDF5]/40">
             Add a photo and your details to see your card
           </p>
+        )}
+        {isReady && rendering && (
+          <div className="absolute flex items-center gap-2 text-sm text-[#E8EDF5]/50">
+            <Loader2 size={16} className="animate-spin" />
+            Rendering…
+          </div>
         )}
       </div>
 

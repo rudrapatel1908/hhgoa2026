@@ -11,10 +11,37 @@ export type CardData = {
   frame?: HTMLImageElement; // optional transparent frame/badge overlay
   stack?: string; // e.g. "Vercel • Supabase • Docker • Hugging Face"
   origin?: string; // e.g. "Gujarat" — used in the boarding-pass journey line
+  role?: string; // e.g. "HACKER" — small pill badge above the name
+  teamName?: string; // e.g. "SIGMASTACK" — shown in the ID-card details row
+  connectUrl?: string; // URL encoded into the QR code; defaults to the event site
 };
 
 export const CARD_SIZE = { width: 1080, height: 1350 }; // 4:5 portrait
 export const OG_SIZE = { width: 1200, height: 630 }; // Twitter summary_large_image
+
+/**
+ * Generates a QR code as a loaded HTMLImageElement, or null if generation
+ * fails for any reason — callers must handle the null case by simply
+ * skipping the QR (drawing a placeholder), never by crashing the card render.
+ */
+async function generateQrImage(text: string): Promise<HTMLImageElement | null> {
+  try {
+    const QRCode = (await import("qrcode")).default;
+    const dataUrl: string = await QRCode.toDataURL(text, {
+      margin: 0,
+      width: 256,
+      color: { dark: "#14251C", light: "#00000000" },
+    });
+    return await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("QR image failed to load"));
+      img.src = dataUrl;
+    });
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Loads a File/Blob into an HTMLImageElement.
@@ -169,16 +196,11 @@ function drawText(
  * cyberpunk accents (neon magenta/gold gradient, glow effects) — distinct
  * from the cyan/violet AI×Crypto PFP templates below, by design.
  */
-const TROPICAL = {
-  bg: "#0F291E",
-  bgDeep: "#0A1D15",
-  magenta: "#FF007F",
-  gold: "#FFD700",
-  neonPink: "#FF3DA6",
-  neonGreen: "#39FF88",
-  white: "#FFFFFF",
-  lightGreen: "#C9FFD4",
-};
+/**
+ * Visual direction: official cream/green Goan-badge ID card. An earlier
+ * tropical/cyberpunk direction was explored and superseded — see git
+ * history if that palette is ever needed again.
+ */
 
 // Kept for the PFP templates further below, which stay in the AI×Crypto
 // visual language on purpose — the two modes are meant to look distinct.
@@ -192,74 +214,6 @@ const PALETTE = {
   white: "#E8EDF5",
   muted: "#5B6472",
 };
-
-/** Scatters faint code-bracket glyphs across the background for texture. */
-function drawBracketPattern(ctx: CanvasRenderingContext2D, W: number, H: number) {
-  const glyphs = ["{ }", "< >", "{ }", "</>"];
-  ctx.save();
-  ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-  ctx.textAlign = "center";
-  const cols = 6;
-  const rows = 9;
-  let i = 0;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const x = (W / cols) * (c + 0.5);
-      const y = (H / rows) * (r + 0.5);
-      ctx.font = `${Math.round(W * 0.035)}px "Courier New", monospace`;
-      ctx.fillText(glyphs[i % glyphs.length], x, y);
-      i++;
-    }
-  }
-  ctx.restore();
-}
-
-/** Glowing sunset horizon: gold-to-transparent-magenta radial gradient behind the user details. */
-function drawSunsetGlow(ctx: CanvasRenderingContext2D) {
-  ctx.save();
-  const gradient = ctx.createRadialGradient(540, 1000, 0, 540, 1000, 350);
-  gradient.addColorStop(0, "#FFD700");
-  gradient.addColorStop(1, "rgba(255, 0, 127, 0)");
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(540, 1000, 350, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
-/** 12px-equivalent linear gradient border, magenta (top-left) to gold (bottom-right). */
-function drawGradientBorder(ctx: CanvasRenderingContext2D, W: number, H: number) {
-  const lineWidth = (12 / 1080) * W;
-  const gradient = ctx.createLinearGradient(0, 0, W, H);
-  gradient.addColorStop(0, TROPICAL.magenta);
-  gradient.addColorStop(1, TROPICAL.gold);
-  ctx.save();
-  ctx.strokeStyle = gradient;
-  ctx.lineWidth = lineWidth;
-  ctx.strokeRect(lineWidth / 2, lineWidth / 2, W - lineWidth, H - lineWidth);
-  ctx.restore();
-}
-
-/** Stark white barcode of pseudo-random bar widths, stretching the full card width. */
-function drawBarcode(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-  ctx.save();
-  ctx.fillStyle = TROPICAL.white;
-  let cursor = x;
-  // deterministic pseudo-random pattern (not a real scannable code, purely visual)
-  let seed = 42;
-  const rand = () => {
-    seed = (seed * 9301 + 49297) % 233280;
-    return seed / 233280;
-  };
-  while (cursor < x + w) {
-    const barW = 1 + rand() * 4;
-    if (rand() > 0.45) {
-      ctx.fillRect(cursor, y, barW, h);
-    }
-    cursor += barW + 1;
-  }
-  ctx.restore();
-}
 
 function clipTicketShape(ctx: CanvasRenderingContext2D, W: number, H: number, radius: number) {
   const notchR = W * 0.032;
@@ -284,7 +238,7 @@ function clipTicketShape(ctx: CanvasRenderingContext2D, W: number, H: number, ra
   ctx.clip();
 }
 
-function renderToCanvas(
+async function renderToCanvas(
   data: CardData,
   size: { width: number; height: number }
 ) {
@@ -293,9 +247,9 @@ function renderToCanvas(
   const isPortrait = W < H;
 
   if (isPortrait) {
-    drawCardPortrait(ctx, data, W, H);
+    await drawCardPortrait(ctx, data, W, H);
   } else {
-    drawCardLandscapeOG(ctx, data, W, H);
+    await drawCardLandscapeOG(ctx, data, W, H);
   }
 
   return canvas;
@@ -307,67 +261,170 @@ function renderToCanvas(
  * guarantee the photo, text, pill, and footer never overlap or squish
  * regardless of name/title length.
  */
-function drawCardPortrait(ctx: CanvasRenderingContext2D, data: CardData, W: number, H: number) {
+// Official-badge palette: cream body, deep Goan green bands, gold accents.
+const BADGE = {
+  cream: "#F4EEDD",
+  green: "#1B4332",
+  greenDark: "#0F291E",
+  gold: "#FFD700",
+  pillPink: "#D6247C",
+  textDark: "#14251C",
+  textMuted: "#5B6B5F",
+};
+
+/** Simple flat palm-tree silhouette, hand-coded as basic shapes (not illustrated line art). */
+function drawPalmSilhouette(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = "rgba(244, 238, 221, 0.35)";
+  // trunk
+  ctx.fillRect(-4, 0, 8, 60);
+  // fronds
+  for (let i = 0; i < 5; i++) {
+    const angle = (i / 4) * Math.PI * 0.8 - Math.PI * 0.9;
+    ctx.save();
+    ctx.translate(0, 0);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.ellipse(30, 0, 32, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/** Simple flat scooter silhouette. */
+function drawScooterSilhouette(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = "rgba(244, 238, 221, 0.5)";
+  ctx.beginPath();
+  ctx.arc(-20, 15, 9, 0, Math.PI * 2);
+  ctx.arc(20, 15, 9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(-20, -5, 40, 10);
+  ctx.fillRect(15, -20, 6, 20);
+  ctx.restore();
+}
+
+/** Simple flat sailboat silhouette. */
+function drawSailboatSilhouette(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = "rgba(244, 238, 221, 0.5)";
+  ctx.beginPath();
+  ctx.moveTo(-25, 15);
+  ctx.lineTo(25, 15);
+  ctx.lineTo(15, 22);
+  ctx.lineTo(-15, 22);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0, 15);
+  ctx.lineTo(0, -25);
+  ctx.lineTo(18, 15);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
+ * Official-badge layout for the 1080x1350 card: cream body, green header
+ * and footer bands, circular photo overlapping the boundary, role pill,
+ * name/role hierarchy, dashed divider, QR code, and team name field.
+ */
+async function drawCardPortrait(ctx: CanvasRenderingContext2D, data: CardData, W: number, H: number) {
   ctx.save();
   clipTicketShape(ctx, W, H, 30);
 
-  // --- background: "Goa Sunset" gradient, dark tropical green to deep sunset purple ---
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, "#0F291E");
-  bg.addColorStop(1, "#2D0A31");
-  ctx.fillStyle = bg;
+  // --- cream body base ---
+  ctx.fillStyle = BADGE.cream;
   ctx.fillRect(0, 0, W, H);
 
-  // glowing sunset horizon behind the user-details area
-  drawSunsetGlow(ctx);
+  // --- header band (green) ---
+  const headerH = 300;
+  ctx.fillStyle = BADGE.green;
+  ctx.fillRect(0, 0, W, headerH);
+  drawPalmSilhouette(ctx, 90, headerH - 60, 1.1);
+  drawPalmSilhouette(ctx, W - 90, headerH - 60, 1.1);
 
-  // code-bracket watermark, drawn over the gradient + glow
-  drawBracketPattern(ctx, W, H);
-
-  // --- header (Y: 100–180) ---
-  drawText(ctx, "HACKER HOUSE", 540, 120, {
-    font: "bold 75px serif",
-    color: TROPICAL.gold,
+  drawText(ctx, "HACKER", 380, 90, {
+    font: "bold 56px serif",
+    color: BADGE.gold,
     align: "center",
   });
-
-  // गोवा offset lower, like a stamp — heavy drop shadow separates it from the yellow text
-  ctx.save();
-  ctx.shadowColor = "black";
-  ctx.shadowBlur = 15;
-  ctx.shadowOffsetX = 3;
-  ctx.shadowOffsetY = 3;
-  drawText(ctx, "गोवा", 540, 150, {
-    font: "bold 85px sans-serif",
-    color: TROPICAL.neonPink,
+  drawText(ctx, "गोवा", 540, 90, {
+    font: "bold 40px sans-serif",
+    color: "#FF3DA6",
     align: "center",
   });
-  ctx.shadowColor = "transparent";
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-  ctx.restore();
-
-  drawText(ctx, "28 - 31 OCTOBER 2026", 540, 200, {
-    font: "20px monospace",
-    color: TROPICAL.white,
+  drawText(ctx, "HOUSE", 700, 90, {
+    font: "bold 56px serif",
+    color: BADGE.gold,
     align: "center",
-    letterSpacing: 3,
+  });
+  drawText(ctx, "GOA, INDIA", 90, 140, {
+    font: "600 20px sans-serif",
+    color: BADGE.gold,
+    align: "left",
+  });
+  drawText(ctx, "28 - 31 OCT 2026", W - 90, 140, {
+    font: "600 20px sans-serif",
+    color: BADGE.cream,
+    align: "right",
   });
 
-  // --- photo: strictly locked to 500x500 at (290, 260) ---
+  // --- footer band (green) ---
+  const footerH = 190;
+  ctx.fillStyle = BADGE.green;
+  ctx.fillRect(0, H - footerH, W, footerH);
+  drawScooterSilhouette(ctx, 160, H - 70, 1.4);
+  drawSailboatSilhouette(ctx, W - 160, H - 90, 1.3);
+
+  // logo badge circle
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(290, 260, 500, 500, 24);
+  ctx.arc(90, H - footerH + 40, 26, 0, Math.PI * 2);
+  ctx.fillStyle = BADGE.pillPink;
+  ctx.fill();
+  ctx.restore();
+  drawText(ctx, "HH", 90, H - footerH + 47, {
+    font: "bold 20px sans-serif",
+    color: BADGE.cream,
+    align: "center",
+  });
+  drawText(ctx, "BUILDING · LEARNING · CONNECTING", 540, H - footerH + 48, {
+    font: "600 17px sans-serif",
+    color: BADGE.cream,
+    align: "center",
+    letterSpacing: 1,
+  });
+  drawText(ctx, "#FrameInGoa", W - 90, H - footerH + 48, {
+    font: "bold 20px sans-serif",
+    color: BADGE.gold,
+    align: "right",
+  });
+
+  // --- photo: circular, overlapping the header/body boundary ---
+  const photoR = 150;
+  const photoCx = W / 2;
+  const photoCy = headerH;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(photoCx, photoCy, photoR, 0, Math.PI * 2);
   ctx.clip();
-  drawCoverImage(ctx, data.photo, 290, 260, 500, 500);
+  drawCoverImage(ctx, data.photo, photoCx - photoR, photoCy - photoR, photoR * 2, photoR * 2);
   ctx.restore();
 
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(290, 260, 500, 500, 24);
-  ctx.strokeStyle = TROPICAL.gold;
-  ctx.lineWidth = 6;
+  ctx.arc(photoCx, photoCy, photoR, 0, Math.PI * 2);
+  ctx.strokeStyle = BADGE.gold;
+  ctx.lineWidth = 8;
   ctx.stroke();
   ctx.restore();
 
@@ -375,93 +432,126 @@ function drawCardPortrait(ctx: CanvasRenderingContext2D, data: CardData, W: numb
     ctx.drawImage(data.frame, 0, 0, W, H);
   }
 
-  // --- user details (Y: 840–1000) ---
-  drawText(ctx, data.name.toUpperCase(), 540, 860, {
-    font: "bold 60px sans-serif",
-    color: TROPICAL.white,
+  // --- role pill, above the name ---
+  const role = (data.role ?? "HACKER").toUpperCase();
+  ctx.font = "bold 20px sans-serif";
+  const roleW = ctx.measureText(role).width + 50;
+  const roleX = photoCx - roleW / 2;
+  const roleY = photoCy + photoR + 40;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(roleX, roleY, roleW, 40, 20);
+  ctx.fillStyle = BADGE.pillPink;
+  ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.font = "bold 20px sans-serif";
+  ctx.fillStyle = BADGE.cream;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(role, photoCx, roleY + 20);
+  ctx.textBaseline = "alphabetic";
+  ctx.restore();
+
+  // --- name ---
+  const nameY = roleY + 90;
+  drawText(ctx, data.name, photoCx, nameY, {
+    font: "bold 46px sans-serif",
+    color: BADGE.textDark,
     align: "center",
   });
 
-  const origin = (data.origin ?? "REMOTE").toUpperCase();
-  drawText(ctx, `FROM: ${origin} ✈ TO: GOA`, 540, 940, {
-    font: "bold 28px monospace",
-    color: TROPICAL.gold,
-    align: "center",
-  });
-
-  // Falls back to a neutral placeholder, NEVER to data.title — reusing the
-  // title here was the earlier bug that made the AI title appear twice.
-  drawText(ctx, data.stack ?? "HH GOA 2026 BUILDER", 540, 1000, {
-    font: "24px sans-serif",
-    color: "#A7F3D0",
-    align: "center",
-  });
-
-  // --- AI title pill (drawn exactly once) ---
-  drawGlowPillFixed(ctx, data.title, 540, 1040);
-
-  // --- footer (Y: 1200–1280) ---
-  drawBarcode(ctx, 140, 1200, 800, 50);
+  // --- role/title line, with a small bracket-badge icon ---
+  const titleY = nameY + 55;
+  const titleText = data.title;
+  ctx.font = "500 26px sans-serif";
+  const titleW = ctx.measureText(titleText).width;
+  const iconR = 16;
+  const groupW = iconR * 2 + 12 + titleW;
+  const groupStartX = photoCx - groupW / 2;
 
   ctx.save();
-  ctx.font = "bold 22px sans-serif";
-  const part1 = "🌴 #FrameInGoa ";
-  const part2 = "⚡ @HackerHouseGoa";
-  const w1 = ctx.measureText(part1).width;
-  const w2 = ctx.measureText(part2).width;
-  const startX = 540 - (w1 + w2) / 2;
-  ctx.textAlign = "left";
-  ctx.fillStyle = TROPICAL.white;
-  ctx.fillText(part1, startX, 1290);
-  ctx.fillStyle = TROPICAL.neonGreen;
-  ctx.fillText(part2, startX + w1, 1290);
+  ctx.beginPath();
+  ctx.arc(groupStartX + iconR, titleY - 9, iconR, 0, Math.PI * 2);
+  ctx.fillStyle = "#2D6A4F";
+  ctx.fill();
   ctx.restore();
+  ctx.save();
+  ctx.font = "bold 14px monospace";
+  ctx.fillStyle = BADGE.cream;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("</>", groupStartX + iconR, titleY - 8);
+  ctx.textBaseline = "alphabetic";
+  ctx.restore();
+
+  drawText(ctx, titleText, groupStartX + iconR * 2 + 12, titleY, {
+    font: "500 26px sans-serif",
+    color: BADGE.textMuted,
+    align: "left",
+  });
+
+  // --- dashed divider ---
+  const dividerY = titleY + 50;
+  ctx.save();
+  ctx.strokeStyle = "#C9C2AA";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 8]);
+  ctx.beginPath();
+  ctx.moveTo(90, dividerY);
+  ctx.lineTo(W - 90, dividerY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // --- QR code (left) + team name (right) ---
+  const rowY = dividerY + 50;
+  const qrSize = 110;
+  const qrImg = await generateQrImage(data.connectUrl ?? "https://hhgoa.com");
+  if (qrImg) {
+    ctx.drawImage(qrImg, 90, rowY, qrSize, qrSize);
+  } else {
+    // graceful fallback if QR generation fails — a dashed placeholder box
+    ctx.save();
+    ctx.strokeStyle = "#C9C2AA";
+    ctx.setLineDash([6, 6]);
+    ctx.strokeRect(90, rowY, qrSize, qrSize);
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+  drawText(ctx, "CONNECT", 90 + qrSize + 20, rowY + 45, {
+    font: "600 20px sans-serif",
+    color: BADGE.textDark,
+    align: "left",
+  });
+  drawText(ctx, "WITH US", 90 + qrSize + 20, rowY + 70, {
+    font: "600 20px sans-serif",
+    color: BADGE.textDark,
+    align: "left",
+  });
+
+  const teamX = W - 90;
+  drawText(ctx, "TEAM NAME", teamX, rowY + 30, {
+    font: "600 18px sans-serif",
+    color: BADGE.textMuted,
+    align: "right",
+    letterSpacing: 1,
+  });
+  drawText(ctx, (data.teamName ?? "SOLO BUILDER").toUpperCase(), teamX, rowY + 65, {
+    font: "bold 26px sans-serif",
+    color: BADGE.green,
+    align: "right",
+  });
 
   ctx.restore();
 
   // border, drawn last and unclipped so it traces the notch cleanly
   ctx.save();
   clipTicketShape(ctx, W, H, 30);
-  drawGradientBorder(ctx, W, H);
-  ctx.restore();
-}
-
-/** Fixed-position pill: centered at Y=1060, height 60, width = text + 80. Title drawn once at Y=1100. */
-function drawGlowPillFixed(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  cx: number,
-  pillTopY: number
-) {
-  ctx.font = "bold 26px monospace";
-  const textW = ctx.measureText(text).width;
-  const pillW = textW + 80;
-  const pillH = 60;
-  const x = cx - pillW / 2;
-  const y = pillTopY;
-  const textY = y + pillH / 2; // exact vertical center — pill spans [1040, 1100], center = 1070
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(x, y, pillW, pillH, pillH / 2);
-  ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-  ctx.fill();
-  ctx.strokeStyle = TROPICAL.magenta;
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = BADGE.gold;
+  ctx.lineWidth = 4;
   ctx.stroke();
   ctx.restore();
-
-  ctx.save();
-  ctx.font = "bold 26px monospace";
-  ctx.fillStyle = TROPICAL.gold;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, cx, textY);
-  ctx.restore();
-  // baseline explicitly reset — everything drawn after this (footer text,
-  // which uses raw fillText without going through drawText) depends on
-  // 'alphabetic' being restored here.
-  ctx.textBaseline = "alphabetic";
 }
 
 /**
@@ -469,55 +559,56 @@ function drawGlowPillFixed(
  * hardcoded portrait coordinates above don't fit this aspect ratio, so this
  * is a deliberately simpler side-by-side layout: photo left, text right.
  */
-function drawCardLandscapeOG(ctx: CanvasRenderingContext2D, data: CardData, W: number, H: number) {
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, TROPICAL.bg);
-  bg.addColorStop(1, TROPICAL.bgDeep);
-  ctx.fillStyle = bg;
+async function drawCardLandscapeOG(ctx: CanvasRenderingContext2D, data: CardData, W: number, H: number) {
+  ctx.fillStyle = BADGE.cream;
   ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = BADGE.green;
+  ctx.fillRect(0, 0, W, 70);
+  ctx.fillRect(0, H - 50, W, 50);
 
-  drawBracketPattern(ctx, W, H);
-  drawGradientBorder(ctx, W, H);
-
-  const photoSize = 420;
+  const photoSize = 380;
   const photoX = 90;
   const photoY = (H - photoSize) / 2;
 
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(photoX, photoY, photoSize, photoSize, 24);
+  ctx.arc(photoX + photoSize / 2, H / 2, photoSize / 2, 0, Math.PI * 2);
   ctx.clip();
   drawCoverImage(ctx, data.photo, photoX, photoY, photoSize, photoSize);
   ctx.restore();
 
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(photoX, photoY, photoSize, photoSize, 24);
-  ctx.strokeStyle = TROPICAL.gold;
-  ctx.lineWidth = 6;
+  ctx.arc(photoX + photoSize / 2, H / 2, photoSize / 2, 0, Math.PI * 2);
+  ctx.strokeStyle = BADGE.gold;
+  ctx.lineWidth = 8;
   ctx.stroke();
   ctx.restore();
 
   const textX = photoX + photoSize + 60;
   const textCenterX = textX + (W - textX - 60) / 2;
 
-  drawText(ctx, "HACKER HOUSE GOA 2026", textCenterX, 140, {
-    font: "bold 34px serif",
-    color: TROPICAL.gold,
+  drawText(ctx, "HACKER HOUSE GOA 2026", textCenterX, 150, {
+    font: "bold 32px serif",
+    color: BADGE.green,
     align: "center",
   });
 
-  drawText(ctx, data.name.toUpperCase(), textCenterX, 320, {
-    font: "bold 48px sans-serif",
-    color: TROPICAL.white,
+  drawText(ctx, data.name, textCenterX, 330, {
+    font: "bold 46px sans-serif",
+    color: BADGE.textDark,
     align: "center",
   });
 
-  drawGlowPillFixed(ctx, data.title, textCenterX, 390);
+  drawText(ctx, data.title, textCenterX, 390, {
+    font: "500 24px sans-serif",
+    color: BADGE.textMuted,
+    align: "center",
+  });
 
-  drawText(ctx, "#FrameInGoa", textCenterX, 540, {
+  drawText(ctx, "#FrameInGoa", textCenterX, 480, {
     font: "bold 24px sans-serif",
-    color: TROPICAL.neonGreen,
+    color: BADGE.pillPink,
     align: "center",
   });
 }
@@ -624,11 +715,11 @@ export function renderPfpCanvas(photo: HTMLImageElement, templateId: PfpTemplate
   return canvas;
 }
 
-export function renderCardCanvas(data: CardData) {
+export async function renderCardCanvas(data: CardData) {
   return renderToCanvas(data, CARD_SIZE);
 }
 
-export function renderOgCanvas(data: CardData) {
+export async function renderOgCanvas(data: CardData) {
   return renderToCanvas(data, OG_SIZE);
 }
 

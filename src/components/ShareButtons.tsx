@@ -25,8 +25,10 @@ export default function ShareButtons({ photo, name, title }: Props) {
 
     try {
       const data: CardData = { photo, name: name.trim(), title: title.trim() };
-      const cardCanvas = renderCardCanvas(data);
-      const ogCanvas = renderOgCanvas(data);
+      const [cardCanvas, ogCanvas] = await Promise.all([
+        renderCardCanvas(data),
+        renderOgCanvas(data),
+      ]);
 
       const [cardBlob, ogBlob] = await Promise.all([
         canvasToBlob(cardCanvas),
