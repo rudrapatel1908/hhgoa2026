@@ -28,38 +28,44 @@ function isRateLimited(ip: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return NextResponse.json({ error: "Storage not configured" }, { status: 503 });
-  }
-
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (isRateLimited(ip)) {
-    return NextResponse.json({ error: "Too many uploads, try again in a minute" }, { status: 429 });
-  }
-
-  let form: FormData;
   try {
-    form = await req.formData();
-  } catch {
-    return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
-  }
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return NextResponse.json({ error: "Storage not configured" }, { status: 503 });
+    }
 
-  const card = form.get("card");
-  const og = form.get("og");
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    if (isRateLimited(ip)) {
+      return NextResponse.json({ error: "Too many uploads, try again in a minute" }, { status: 429 });
+    }
 
-  if (!(card instanceof Blob) || !(og instanceof Blob)) {
-    return NextResponse.json({ error: "Missing card or og image" }, { status: 400 });
-  }
-  if (card.type !== ALLOWED_TYPE || og.type !== ALLOWED_TYPE) {
-    return NextResponse.json({ error: "Images must be PNG" }, { status: 400 });
-  }
-  if (card.size > MAX_BYTES || og.size > MAX_BYTES) {
-    return NextResponse.json({ error: "Image too large" }, { status: 400 });
-  }
+    let form: FormData;
+    try {
+      form = await req.formData();
+    } catch (parseErr) {
+      console.error("upload-card: formData parse failed", parseErr);
+      return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
+    }
 
-  const id = nanoid(8);
+    const card = form.get("card");
+    const og = form.get("og");
 
-  try {
+    if (!(card instanceof Blob) || !(og instanceof Blob)) {
+      console.error("upload-card: missing card/og in form", {
+        cardType: typeof card,
+        ogType: typeof og,
+      });
+      return NextResponse.json({ error: "Missing card or og image" }, { status: 400 });
+    }
+    if (card.type !== ALLOWED_TYPE || og.type !== ALLOWED_TYPE) {
+      console.error("upload-card: wrong mime type", { cardType: card.type, ogType: og.type });
+      return NextResponse.json({ error: "Images must be PNG" }, { status: 400 });
+    }
+    if (card.size > MAX_BYTES || og.size > MAX_BYTES) {
+      return NextResponse.json({ error: "Image too large" }, { status: 400 });
+    }
+
+    const id = nanoid(8);
+
     const [cardBlob, ogBlob] = await Promise.all([
       put(`cards/${id}.png`, card, {
         access: "public",
@@ -80,6 +86,12 @@ export async function POST(req: NextRequest) {
       shareUrl: `${req.nextUrl.origin}/card/${id}`,
     });
   } catch (err) {
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    // Logging the real error + stack so it's visible in Vercel's runtime logs
+    // instead of just a bare 500 with no context.
+    console.error("upload-card: unhandled error", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Upload failed" },
+      { status: 500 }
+    );
   }
 }
