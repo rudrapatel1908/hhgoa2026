@@ -197,8 +197,7 @@ const PALETTE = {
 function drawBracketPattern(ctx: CanvasRenderingContext2D, W: number, H: number) {
   const glyphs = ["{ }", "< >", "{ }", "</>"];
   ctx.save();
-  ctx.globalAlpha = 0.06;
-  ctx.fillStyle = TROPICAL.white;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
   ctx.textAlign = "center";
   const cols = 6;
   const rows = 9;
@@ -212,6 +211,19 @@ function drawBracketPattern(ctx: CanvasRenderingContext2D, W: number, H: number)
       i++;
     }
   }
+  ctx.restore();
+}
+
+/** Glowing sunset horizon: gold-to-transparent-magenta radial gradient behind the user details. */
+function drawSunsetGlow(ctx: CanvasRenderingContext2D) {
+  ctx.save();
+  const gradient = ctx.createRadialGradient(540, 1000, 0, 540, 1000, 350);
+  gradient.addColorStop(0, "#FFD700");
+  gradient.addColorStop(1, "rgba(255, 0, 127, 0)");
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(540, 1000, 350, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -251,11 +263,14 @@ function drawBarcode(ctx: CanvasRenderingContext2D, x: number, y: number, w: num
 
 function clipTicketShape(ctx: CanvasRenderingContext2D, W: number, H: number, radius: number) {
   const notchR = W * 0.032;
-  const notchY = H * 0.018;
+  // Notch center sits exactly ON the top edge (y=0), not offset above it —
+  // keeping the path flush with y=0 everywhere except the bite itself is
+  // what avoids the stray diagonal seam near the top-right corner.
+  const notchY = 0;
 
   ctx.beginPath();
   ctx.moveTo(radius, 0);
-  ctx.lineTo(W / 2 - notchR - 4, 0);
+  ctx.lineTo(W / 2 - notchR, 0);
   ctx.arc(W / 2, notchY, notchR, Math.PI, 0, true);
   ctx.lineTo(W - radius, 0);
   ctx.arcTo(W, 0, W, radius, radius);
@@ -296,30 +311,41 @@ function drawCardPortrait(ctx: CanvasRenderingContext2D, data: CardData, W: numb
   ctx.save();
   clipTicketShape(ctx, W, H, 30);
 
-  // --- background ---
+  // --- background: "Goa Sunset" gradient, dark tropical green to deep sunset purple ---
   const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, TROPICAL.bg);
-  bg.addColorStop(1, TROPICAL.bgDeep);
+  bg.addColorStop(0, "#0F291E");
+  bg.addColorStop(1, "#2D0A31");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
+  // glowing sunset horizon behind the user-details area
+  drawSunsetGlow(ctx);
+
+  // code-bracket watermark, drawn over the gradient + glow
   drawBracketPattern(ctx, W, H);
 
-  // --- header (Y: 100–220) ---
+  // --- header (Y: 100–180) ---
   drawText(ctx, "HACKER HOUSE", 540, 120, {
     font: "bold 75px serif",
     color: TROPICAL.gold,
     align: "center",
   });
 
+  // गोवा offset lower, like a stamp — heavy drop shadow separates it from the yellow text
   ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.8)";
-  ctx.shadowBlur = 10;
-  drawText(ctx, "गोवा", 540, 120, {
+  ctx.shadowColor = "black";
+  ctx.shadowBlur = 15;
+  ctx.shadowOffsetX = 3;
+  ctx.shadowOffsetY = 3;
+  drawText(ctx, "गोवा", 540, 150, {
     font: "bold 85px sans-serif",
     color: TROPICAL.neonPink,
     align: "center",
   });
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
   ctx.restore();
 
   drawText(ctx, "28 - 31 OCTOBER 2026", 540, 200, {
@@ -372,7 +398,7 @@ function drawCardPortrait(ctx: CanvasRenderingContext2D, data: CardData, W: numb
   });
 
   // --- AI title pill (drawn exactly once) ---
-  drawGlowPillFixed(ctx, data.title, 540, 1060, 1100);
+  drawGlowPillFixed(ctx, data.title, 540, 1040);
 
   // --- footer (Y: 1200–1280) ---
   drawBarcode(ctx, 140, 1200, 800, 50);
@@ -405,20 +431,20 @@ function drawGlowPillFixed(
   ctx: CanvasRenderingContext2D,
   text: string,
   cx: number,
-  pillCenterY: number,
-  textY: number
+  pillTopY: number
 ) {
   ctx.font = "bold 26px monospace";
   const textW = ctx.measureText(text).width;
   const pillW = textW + 80;
   const pillH = 60;
   const x = cx - pillW / 2;
-  const y = pillCenterY - pillH / 2;
+  const y = pillTopY;
+  const textY = y + pillH / 2; // exact vertical center — pill spans [1040, 1100], center = 1070
 
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(x, y, pillW, pillH, pillH / 2);
-  ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
   ctx.fill();
   ctx.strokeStyle = TROPICAL.magenta;
   ctx.lineWidth = 3;
@@ -429,9 +455,13 @@ function drawGlowPillFixed(
   ctx.font = "bold 26px monospace";
   ctx.fillStyle = TROPICAL.gold;
   ctx.textAlign = "center";
-  ctx.textBaseline = "alphabetic";
+  ctx.textBaseline = "middle";
   ctx.fillText(text, cx, textY);
   ctx.restore();
+  // baseline explicitly reset — everything drawn after this (footer text,
+  // which uses raw fillText without going through drawText) depends on
+  // 'alphabetic' being restored here.
+  ctx.textBaseline = "alphabetic";
 }
 
 /**
@@ -483,7 +513,7 @@ function drawCardLandscapeOG(ctx: CanvasRenderingContext2D, data: CardData, W: n
     align: "center",
   });
 
-  drawGlowPillFixed(ctx, data.title, textCenterX, 420, 430);
+  drawGlowPillFixed(ctx, data.title, textCenterX, 390);
 
   drawText(ctx, "#FrameInGoa", textCenterX, 540, {
     font: "bold 24px sans-serif",
