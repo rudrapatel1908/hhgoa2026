@@ -228,49 +228,6 @@ function drawGradientBorder(ctx: CanvasRenderingContext2D, W: number, H: number)
   ctx.restore();
 }
 
-/** Dark glassy pill with a glowing magenta border, holding the AI-generated builder title. */
-function drawGlowPill(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  cx: number,
-  y: number,
-  fontSize: number
-) {
-  ctx.font = `700 ${fontSize}px "Inter", sans-serif`;
-  const textW = ctx.measureText(text).width;
-  const padX = fontSize * 0.9;
-  const padY = fontSize * 0.55;
-  const pillW = textW + padX * 2;
-  const pillH = fontSize + padY * 2;
-  const x = cx - pillW / 2;
-  const topY = y - fontSize * 0.78 - padY;
-  const r = pillH / 2;
-
-  const path = new Path2D();
-  path.moveTo(x + r, topY);
-  path.arcTo(x + pillW, topY, x + pillW, topY + pillH, r);
-  path.arcTo(x + pillW, topY + pillH, x, topY + pillH, r);
-  path.arcTo(x, topY + pillH, x, topY, r);
-  path.arcTo(x, topY, x + pillW, topY, r);
-  path.closePath();
-
-  ctx.save();
-  ctx.fillStyle = "rgba(10, 20, 15, 0.55)";
-  ctx.shadowColor = TROPICAL.magenta;
-  ctx.shadowBlur = fontSize * 0.6;
-  ctx.fill(path);
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = TROPICAL.magenta;
-  ctx.lineWidth = Math.max(1.5, fontSize * 0.05);
-  ctx.stroke(path);
-  ctx.restore();
-
-  ctx.fillStyle = TROPICAL.gold;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText(text, cx, y);
-}
-
 /** Stark white barcode of pseudo-random bar widths, stretching the full card width. */
 function drawBarcode(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
   ctx.save();
@@ -320,12 +277,26 @@ function renderToCanvas(
   const { width: W, height: H } = size;
   const isPortrait = W < H;
 
-  ctx.save();
   if (isPortrait) {
-    clipTicketShape(ctx, W, H, W * 0.03);
+    drawCardPortrait(ctx, data, W, H);
+  } else {
+    drawCardLandscapeOG(ctx, data, W, H);
   }
 
-  // --- background: deep tropical forest green ---
+  return canvas;
+}
+
+/**
+ * Strict hardcoded-coordinate layout for the 1080x1350 card. Every Y-position
+ * and font size below is fixed, not proportional — this is intentional, to
+ * guarantee the photo, text, pill, and footer never overlap or squish
+ * regardless of name/title length.
+ */
+function drawCardPortrait(ctx: CanvasRenderingContext2D, data: CardData, W: number, H: number) {
+  ctx.save();
+  clipTicketShape(ctx, W, H, 30);
+
+  // --- background ---
   const bg = ctx.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0, TROPICAL.bg);
   bg.addColorStop(1, TROPICAL.bgDeep);
@@ -334,119 +305,191 @@ function renderToCanvas(
 
   drawBracketPattern(ctx, W, H);
 
-  // --- header: HACKER HOUSE + गोवा overlay + dates ---
-  const headerY = H * 0.075;
-  drawText(ctx, "HACKER HOUSE", W / 2, headerY, {
-    font: `700 ${Math.round(W * 0.075)}px Georgia, "Times New Roman", serif`,
+  // --- header (Y: 100–220) ---
+  drawText(ctx, "HACKER HOUSE", 540, 120, {
+    font: "bold 75px serif",
     color: TROPICAL.gold,
     align: "center",
   });
+
   ctx.save();
-  ctx.globalAlpha = 0.9;
-  drawText(ctx, "गोवा", W / 2 + W * 0.01, headerY - W * 0.006, {
-    font: `700 ${Math.round(W * 0.06)}px "Noto Sans Devanagari", Georgia, serif`,
+  ctx.shadowColor = "rgba(0,0,0,0.8)";
+  ctx.shadowBlur = 10;
+  drawText(ctx, "गोवा", 540, 120, {
+    font: "bold 85px sans-serif",
     color: TROPICAL.neonPink,
     align: "center",
   });
   ctx.restore();
-  drawText(ctx, "28 – 31 OCTOBER 2026", W / 2, headerY + W * 0.045, {
-    font: `500 ${Math.round(W * 0.016)}px "Courier New", monospace`,
+
+  drawText(ctx, "28 - 31 OCTOBER 2026", 540, 200, {
+    font: "20px monospace",
     color: TROPICAL.white,
     align: "center",
     letterSpacing: 3,
   });
 
-  // --- photo area ---
-  const pad = W * 0.1;
-  const photoTop = headerY + W * 0.075;
-  const photoSize = isPortrait ? W - pad * 2 : H - pad * 2;
-  const photoX = pad;
-  const photoY = isPortrait ? photoTop : pad;
-  const photoW = photoSize;
-  const photoH = photoSize;
-  const photoRadius = (24 / 1080) * W;
+  // --- photo: strictly locked to 500x500 at (290, 260) ---
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(290, 260, 500, 500, 24);
+  ctx.clip();
+  drawCoverImage(ctx, data.photo, 290, 260, 500, 500);
+  ctx.restore();
 
   ctx.save();
-  ctx.strokeStyle = TROPICAL.gold;
-  ctx.lineWidth = (6 / 1080) * W;
   ctx.beginPath();
-  ctx.moveTo(photoX + photoRadius, photoY);
-  ctx.arcTo(photoX + photoW, photoY, photoX + photoW, photoY + photoH, photoRadius);
-  ctx.arcTo(photoX + photoW, photoY + photoH, photoX, photoY + photoH, photoRadius);
-  ctx.arcTo(photoX, photoY + photoH, photoX, photoY, photoRadius);
-  ctx.arcTo(photoX, photoY, photoX + photoW, photoY, photoRadius);
-  ctx.closePath();
+  ctx.roundRect(290, 260, 500, 500, 24);
+  ctx.strokeStyle = TROPICAL.gold;
+  ctx.lineWidth = 6;
   ctx.stroke();
-  ctx.clip();
-  drawCoverImage(ctx, data.photo, photoX, photoY, photoW, photoH);
   ctx.restore();
 
   if (data.frame) {
     ctx.drawImage(data.frame, 0, 0, W, H);
   }
 
-  // --- name ---
-  let cursorY = photoY + photoH + W * 0.075;
-  drawText(ctx, data.name.toUpperCase(), W / 2, cursorY, {
-    font: `800 ${Math.round(W * 0.065)}px "Inter", sans-serif`,
+  // --- user details (Y: 840–1000) ---
+  drawText(ctx, data.name.toUpperCase(), 540, 860, {
+    font: "bold 60px sans-serif",
     color: TROPICAL.white,
     align: "center",
   });
 
-  // --- boarding-pass style journey line ---
-  cursorY += W * 0.05;
   const origin = (data.origin ?? "REMOTE").toUpperCase();
-  drawText(ctx, `FROM: ${origin}  ✈  TO: GOA`, W / 2, cursorY, {
-    font: `600 ${Math.round(W * 0.024)}px "Courier New", monospace`,
+  drawText(ctx, `FROM: ${origin} ✈ TO: GOA`, 540, 940, {
+    font: "bold 28px monospace",
     color: TROPICAL.gold,
     align: "center",
-    letterSpacing: 1,
   });
 
-  // --- stack line ---
-  cursorY += W * 0.04;
-  drawText(ctx, data.stack ?? data.title, W / 2, cursorY, {
-    font: `500 ${Math.round(W * 0.022)}px "Inter", sans-serif`,
-    color: TROPICAL.lightGreen,
+  // Falls back to a neutral placeholder, NEVER to data.title — reusing the
+  // title here was the earlier bug that made the AI title appear twice.
+  drawText(ctx, data.stack ?? "HH GOA 2026 BUILDER", 540, 1000, {
+    font: "24px sans-serif",
+    color: "#A7F3D0",
     align: "center",
   });
 
-  // --- dynamic AI title pill ---
-  drawGlowPill(ctx, data.title, W / 2, cursorY + W * 0.09, Math.round(W * 0.03));
+  // --- AI title pill (drawn exactly once) ---
+  drawGlowPillFixed(ctx, data.title, 540, 1060, 1100);
 
-  // --- footer: barcode + tagline ---
-  const barcodeW = W * 0.7;
-  const barcodeH = H * 0.03;
-  drawBarcode(ctx, (W - barcodeW) / 2, H - H * 0.09, barcodeW, barcodeH);
+  // --- footer (Y: 1200–1280) ---
+  drawBarcode(ctx, 140, 1200, 800, 50);
 
   ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = `600 ${Math.round(W * 0.02)}px "Inter", sans-serif`;
-  const footerY = H - H * 0.045;
+  ctx.font = "bold 22px sans-serif";
   const part1 = "🌴 #FrameInGoa ";
   const part2 = "⚡ @HackerHouseGoa";
   const w1 = ctx.measureText(part1).width;
   const w2 = ctx.measureText(part2).width;
-  const startX = W / 2 - (w1 + w2) / 2;
+  const startX = 540 - (w1 + w2) / 2;
   ctx.textAlign = "left";
   ctx.fillStyle = TROPICAL.white;
-  ctx.fillText(part1, startX, footerY);
+  ctx.fillText(part1, startX, 1290);
   ctx.fillStyle = TROPICAL.neonGreen;
-  ctx.fillText(part2, startX + w1, footerY);
+  ctx.fillText(part2, startX + w1, 1290);
   ctx.restore();
 
   ctx.restore();
 
-  if (isPortrait) {
-    ctx.save();
-    clipTicketShape(ctx, W, H, W * 0.03);
-    drawGradientBorder(ctx, W, H);
-    ctx.restore();
-  } else {
-    drawGradientBorder(ctx, W, H);
-  }
+  // border, drawn last and unclipped so it traces the notch cleanly
+  ctx.save();
+  clipTicketShape(ctx, W, H, 30);
+  drawGradientBorder(ctx, W, H);
+  ctx.restore();
+}
 
-  return canvas;
+/** Fixed-position pill: centered at Y=1060, height 60, width = text + 80. Title drawn once at Y=1100. */
+function drawGlowPillFixed(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  cx: number,
+  pillCenterY: number,
+  textY: number
+) {
+  ctx.font = "bold 26px monospace";
+  const textW = ctx.measureText(text).width;
+  const pillW = textW + 80;
+  const pillH = 60;
+  const x = cx - pillW / 2;
+  const y = pillCenterY - pillH / 2;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x, y, pillW, pillH, pillH / 2);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+  ctx.fill();
+  ctx.strokeStyle = TROPICAL.magenta;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.font = "bold 26px monospace";
+  ctx.fillStyle = TROPICAL.gold;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(text, cx, textY);
+  ctx.restore();
+}
+
+/**
+ * Compact layout for the 1200x630 landscape OG/Twitter-card image — the
+ * hardcoded portrait coordinates above don't fit this aspect ratio, so this
+ * is a deliberately simpler side-by-side layout: photo left, text right.
+ */
+function drawCardLandscapeOG(ctx: CanvasRenderingContext2D, data: CardData, W: number, H: number) {
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, TROPICAL.bg);
+  bg.addColorStop(1, TROPICAL.bgDeep);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  drawBracketPattern(ctx, W, H);
+  drawGradientBorder(ctx, W, H);
+
+  const photoSize = 420;
+  const photoX = 90;
+  const photoY = (H - photoSize) / 2;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(photoX, photoY, photoSize, photoSize, 24);
+  ctx.clip();
+  drawCoverImage(ctx, data.photo, photoX, photoY, photoSize, photoSize);
+  ctx.restore();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(photoX, photoY, photoSize, photoSize, 24);
+  ctx.strokeStyle = TROPICAL.gold;
+  ctx.lineWidth = 6;
+  ctx.stroke();
+  ctx.restore();
+
+  const textX = photoX + photoSize + 60;
+  const textCenterX = textX + (W - textX - 60) / 2;
+
+  drawText(ctx, "HACKER HOUSE GOA 2026", textCenterX, 140, {
+    font: "bold 34px serif",
+    color: TROPICAL.gold,
+    align: "center",
+  });
+
+  drawText(ctx, data.name.toUpperCase(), textCenterX, 320, {
+    font: "bold 48px sans-serif",
+    color: TROPICAL.white,
+    align: "center",
+  });
+
+  drawGlowPillFixed(ctx, data.title, textCenterX, 420, 430);
+
+  drawText(ctx, "#FrameInGoa", textCenterX, 540, {
+    font: "bold 24px sans-serif",
+    color: TROPICAL.neonGreen,
+    align: "center",
+  });
 }
 
 /** Available PFP template styles — id must match what's shown in the picker UI. */
