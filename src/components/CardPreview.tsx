@@ -21,7 +21,11 @@ export default function CardPreview({ photo, name, title }: Props) {
   const isReady = Boolean(photo && name.trim() && title.trim());
 
   useEffect(() => {
-    if (!photo || !name.trim() || !title.trim() || !containerRef.current) return;
+    if (!photo || !name.trim() || !title.trim() || !containerRef.current) {
+      if (containerRef.current) containerRef.current.innerHTML = "";
+      canvasElRef.current = null;
+      return;
+    }
 
     let cancelled = false;
     setRendering(true);
@@ -60,12 +64,14 @@ export default function CardPreview({ photo, name, title }: Props) {
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
-      <div
-        ref={containerRef}
-        className="relative flex aspect-[4/5] w-full max-w-sm items-center justify-center overflow-hidden rounded-2xl border border-[#1B5A66]/30 bg-[#0E1018]"
-      >
+      <div className="relative flex aspect-[4/5] w-full max-w-sm items-center justify-center overflow-hidden rounded-2xl border border-[#1B5A66]/30 bg-[#0E1018]">
+        {/* Dedicated slot for manual canvas injection — React never renders
+            JSX children into this div, so it never fights our appendChild
+            calls during reconciliation (that mismatch was the removeChild crash). */}
+        <div ref={containerRef} className="h-full w-full" />
+
         {!isReady && (
-          <p className="px-8 text-center text-sm text-[#E8EDF5]/40">
+          <p className="absolute px-8 text-center text-sm text-[#E8EDF5]/40">
             Add a photo and your details to see your card
           </p>
         )}
