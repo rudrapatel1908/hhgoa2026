@@ -9,6 +9,8 @@ export type CardData = {
   title: string; // e.g. "Async Rust Wizard"
   photo: HTMLImageElement;
   frame?: HTMLImageElement; // optional transparent frame/badge overlay
+  stack?: string; // e.g. "Vercel • Supabase • Docker • Hugging Face"
+  origin?: string; // e.g. "Gujarat" — used in the boarding-pass journey line
 };
 
 export const CARD_SIZE = { width: 1080, height: 1350 }; // 4:5 portrait
@@ -162,12 +164,24 @@ function drawText(
  * Renders the full builder ID card at the given target size.
  * Used for both the CARD (download) and OG (share preview) exports —
  * layout adapts based on aspect ratio (portrait vs landscape).
+ *
+ * Visual direction: tropical Goan base (deep forest green) fused with
+ * cyberpunk accents (neon magenta/gold gradient, glow effects) — distinct
+ * from the cyan/violet AI×Crypto PFP templates below, by design.
  */
-// HH Goa 2026 palette — dark hacker base (matches hhgoa.com) with
-// gold/magenta accents pulled from the event's Goan motif artwork.
-// HH Goa 2026 palette — "AI × Crypto. Multichain. Goa." theme:
-// electric cyan reads as AI/neural, violet reads as crypto/chain,
-// dark base matches the hacker aesthetic of hhgoa.com.
+const TROPICAL = {
+  bg: "#0F291E",
+  bgDeep: "#0A1D15",
+  magenta: "#FF007F",
+  gold: "#FFD700",
+  neonPink: "#FF3DA6",
+  neonGreen: "#39FF88",
+  white: "#FFFFFF",
+  lightGreen: "#C9FFD4",
+};
+
+// Kept for the PFP templates further below, which stay in the AI×Crypto
+// visual language on purpose — the two modes are meant to look distinct.
 const PALETTE = {
   bgTop: "#0A0D14",
   bgBottom: "#12111C",
@@ -179,65 +193,50 @@ const PALETTE = {
   muted: "#5B6472",
 };
 
-/** Draws a circuit-trace border: nodes connected by short lines, reading as a PCB/neural trace. */
-function drawCircuitBorder(ctx: CanvasRenderingContext2D, W: number, H: number) {
-  const inset = W * 0.035;
-  const nodeSpacing = W * 0.05;
-  const nodeRadius = W * 0.0035;
-
-  ctx.strokeStyle = PALETTE.cyanDim;
-  ctx.lineWidth = Math.max(1, W * 0.0012);
-
-  // top and bottom trace lines with nodes
-  for (let x = inset; x <= W - inset; x += nodeSpacing) {
-    ctx.beginPath();
-    ctx.moveTo(x, inset);
-    ctx.lineTo(Math.min(x + nodeSpacing * 0.55, W - inset), inset);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x, H - inset);
-    ctx.lineTo(Math.min(x + nodeSpacing * 0.55, W - inset), H - inset);
-    ctx.stroke();
-
-    ctx.fillStyle = PALETTE.cyan;
-    ctx.beginPath();
-    ctx.arc(x, inset, nodeRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x, H - inset, nodeRadius, 0, Math.PI * 2);
-    ctx.fill();
+/** Scatters faint code-bracket glyphs across the background for texture. */
+function drawBracketPattern(ctx: CanvasRenderingContext2D, W: number, H: number) {
+  const glyphs = ["{ }", "< >", "{ }", "</>"];
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  ctx.fillStyle = TROPICAL.white;
+  ctx.textAlign = "center";
+  const cols = 6;
+  const rows = 9;
+  let i = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = (W / cols) * (c + 0.5);
+      const y = (H / rows) * (r + 0.5);
+      ctx.font = `${Math.round(W * 0.035)}px "Courier New", monospace`;
+      ctx.fillText(glyphs[i % glyphs.length], x, y);
+      i++;
+    }
   }
-
-  // left and right trace lines with nodes
-  for (let y = inset; y <= H - inset; y += nodeSpacing) {
-    ctx.beginPath();
-    ctx.moveTo(inset, y);
-    ctx.lineTo(inset, Math.min(y + nodeSpacing * 0.55, H - inset));
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(W - inset, y);
-    ctx.lineTo(W - inset, Math.min(y + nodeSpacing * 0.55, H - inset));
-    ctx.stroke();
-
-    ctx.fillStyle = PALETTE.violet;
-    ctx.beginPath();
-    ctx.arc(inset, y, nodeRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(W - inset, y, nodeRadius, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  ctx.restore();
 }
 
-/** Draws a rounded gradient pill (cyan-to-violet) behind the generated title text. */
-function drawTitlePill(
+/** 12px-equivalent linear gradient border, magenta (top-left) to gold (bottom-right). */
+function drawGradientBorder(ctx: CanvasRenderingContext2D, W: number, H: number) {
+  const lineWidth = (12 / 1080) * W;
+  const gradient = ctx.createLinearGradient(0, 0, W, H);
+  gradient.addColorStop(0, TROPICAL.magenta);
+  gradient.addColorStop(1, TROPICAL.gold);
+  ctx.save();
+  ctx.strokeStyle = gradient;
+  ctx.lineWidth = lineWidth;
+  ctx.strokeRect(lineWidth / 2, lineWidth / 2, W - lineWidth, H - lineWidth);
+  ctx.restore();
+}
+
+/** Dark glassy pill with a glowing magenta border, holding the AI-generated builder title. */
+function drawGlowPill(
   ctx: CanvasRenderingContext2D,
   text: string,
   cx: number,
   y: number,
   fontSize: number
 ) {
-  ctx.font = `600 ${fontSize}px "Inter", sans-serif`;
+  ctx.font = `700 ${fontSize}px "Inter", sans-serif`;
   const textW = ctx.measureText(text).width;
   const padX = fontSize * 0.9;
   const padY = fontSize * 0.55;
@@ -247,27 +246,52 @@ function drawTitlePill(
   const topY = y - fontSize * 0.78 - padY;
   const r = pillH / 2;
 
-  const gradient = ctx.createLinearGradient(x, topY, x + pillW, topY);
-  gradient.addColorStop(0, PALETTE.cyan);
-  gradient.addColorStop(1, PALETTE.violet);
+  const path = new Path2D();
+  path.moveTo(x + r, topY);
+  path.arcTo(x + pillW, topY, x + pillW, topY + pillH, r);
+  path.arcTo(x + pillW, topY + pillH, x, topY + pillH, r);
+  path.arcTo(x, topY + pillH, x, topY, r);
+  path.arcTo(x, topY, x + pillW, topY, r);
+  path.closePath();
 
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.moveTo(x + r, topY);
-  ctx.arcTo(x + pillW, topY, x + pillW, topY + pillH, r);
-  ctx.arcTo(x + pillW, topY + pillH, x, topY + pillH, r);
-  ctx.arcTo(x, topY + pillH, x, topY, r);
-  ctx.arcTo(x, topY, x + pillW, topY, r);
-  ctx.closePath();
-  ctx.fill();
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 20, 15, 0.55)";
+  ctx.shadowColor = TROPICAL.magenta;
+  ctx.shadowBlur = fontSize * 0.6;
+  ctx.fill(path);
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = TROPICAL.magenta;
+  ctx.lineWidth = Math.max(1.5, fontSize * 0.05);
+  ctx.stroke(path);
+  ctx.restore();
 
-  ctx.fillStyle = "#0A0D14";
+  ctx.fillStyle = TROPICAL.gold;
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
   ctx.fillText(text, cx, y);
 }
 
-/** Clips a rounded-rect canvas region and punches a semicircular notch in the top edge, like a lanyard card. */
+/** Stark white barcode of pseudo-random bar widths, stretching the full card width. */
+function drawBarcode(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  ctx.save();
+  ctx.fillStyle = TROPICAL.white;
+  let cursor = x;
+  // deterministic pseudo-random pattern (not a real scannable code, purely visual)
+  let seed = 42;
+  const rand = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  while (cursor < x + w) {
+    const barW = 1 + rand() * 4;
+    if (rand() > 0.45) {
+      ctx.fillRect(cursor, y, barW, h);
+    }
+    cursor += barW + 1;
+  }
+  ctx.restore();
+}
+
 function clipTicketShape(ctx: CanvasRenderingContext2D, W: number, H: number, radius: number) {
   const notchR = W * 0.032;
   const notchY = H * 0.018;
@@ -275,7 +299,6 @@ function clipTicketShape(ctx: CanvasRenderingContext2D, W: number, H: number, ra
   ctx.beginPath();
   ctx.moveTo(radius, 0);
   ctx.lineTo(W / 2 - notchR - 4, 0);
-  // notch cut (arc drawn "into" the card, counter-clockwise so it subtracts)
   ctx.arc(W / 2, notchY, notchR, Math.PI, 0, true);
   ctx.lineTo(W - radius, 0);
   ctx.arcTo(W, 0, W, radius, radius);
@@ -302,98 +325,125 @@ function renderToCanvas(
     clipTicketShape(ctx, W, H, W * 0.03);
   }
 
-  // --- background: near-black gradient, matching hhgoa.com's dark base ---
+  // --- background: deep tropical forest green ---
   const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, PALETTE.bgTop);
-  bg.addColorStop(1, PALETTE.bgBottom);
+  bg.addColorStop(0, TROPICAL.bg);
+  bg.addColorStop(1, TROPICAL.bgDeep);
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  drawCircuitBorder(ctx, W, H);
+  drawBracketPattern(ctx, W, H);
+
+  // --- header: HACKER HOUSE + गोवा overlay + dates ---
+  const headerY = H * 0.075;
+  drawText(ctx, "HACKER HOUSE", W / 2, headerY, {
+    font: `700 ${Math.round(W * 0.075)}px Georgia, "Times New Roman", serif`,
+    color: TROPICAL.gold,
+    align: "center",
+  });
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  drawText(ctx, "गोवा", W / 2 + W * 0.01, headerY - W * 0.006, {
+    font: `700 ${Math.round(W * 0.06)}px "Noto Sans Devanagari", Georgia, serif`,
+    color: TROPICAL.neonPink,
+    align: "center",
+  });
+  ctx.restore();
+  drawText(ctx, "28 – 31 OCTOBER 2026", W / 2, headerY + W * 0.045, {
+    font: `500 ${Math.round(W * 0.016)}px "Courier New", monospace`,
+    color: TROPICAL.white,
+    align: "center",
+    letterSpacing: 3,
+  });
 
   // --- photo area ---
   const pad = W * 0.1;
+  const photoTop = headerY + W * 0.075;
   const photoSize = isPortrait ? W - pad * 2 : H - pad * 2;
-  const photoX = isPortrait ? pad : pad;
-  const photoY = pad;
+  const photoX = pad;
+  const photoY = isPortrait ? photoTop : pad;
   const photoW = photoSize;
   const photoH = photoSize;
+  const photoRadius = (24 / 1080) * W;
 
-  // cyan ring behind the photo
   ctx.save();
-  ctx.strokeStyle = PALETTE.cyan;
-  ctx.lineWidth = W * 0.006;
-  const radius = 20;
-  const ringPad = W * 0.006;
+  ctx.strokeStyle = TROPICAL.gold;
+  ctx.lineWidth = (6 / 1080) * W;
   ctx.beginPath();
-  ctx.moveTo(photoX - ringPad + radius, photoY - ringPad);
-  ctx.arcTo(photoX + photoW + ringPad, photoY - ringPad, photoX + photoW + ringPad, photoY + photoH + ringPad, radius);
-  ctx.arcTo(photoX + photoW + ringPad, photoY + photoH + ringPad, photoX - ringPad, photoY + photoH + ringPad, radius);
-  ctx.arcTo(photoX - ringPad, photoY + photoH + ringPad, photoX - ringPad, photoY - ringPad, radius);
-  ctx.arcTo(photoX - ringPad, photoY - ringPad, photoX + photoW + ringPad, photoY - ringPad, radius);
+  ctx.moveTo(photoX + photoRadius, photoY);
+  ctx.arcTo(photoX + photoW, photoY, photoX + photoW, photoY + photoH, photoRadius);
+  ctx.arcTo(photoX + photoW, photoY + photoH, photoX, photoY + photoH, photoRadius);
+  ctx.arcTo(photoX, photoY + photoH, photoX, photoY, photoRadius);
+  ctx.arcTo(photoX, photoY, photoX + photoW, photoY, photoRadius);
   ctx.closePath();
   ctx.stroke();
-  ctx.restore();
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(photoX + radius, photoY);
-  ctx.arcTo(photoX + photoW, photoY, photoX + photoW, photoY + photoH, radius);
-  ctx.arcTo(photoX + photoW, photoY + photoH, photoX, photoY + photoH, radius);
-  ctx.arcTo(photoX, photoY + photoH, photoX, photoY, radius);
-  ctx.arcTo(photoX, photoY, photoX + photoW, photoY, radius);
-  ctx.closePath();
   ctx.clip();
   drawCoverImage(ctx, data.photo, photoX, photoY, photoW, photoH);
   ctx.restore();
 
-  // --- optional extra overlay art (transparent PNG, drawn full-bleed) ---
   if (data.frame) {
     ctx.drawImage(data.frame, 0, 0, W, H);
   }
 
-  // --- text block ---
-  const textTop = photoY + photoH + H * 0.075;
-  drawText(ctx, data.name.toUpperCase(), W / 2, textTop, {
-    font: `700 ${Math.round(W * 0.055)}px "Inter", sans-serif`,
-    color: PALETTE.white,
+  // --- name ---
+  let cursorY = photoY + photoH + W * 0.075;
+  drawText(ctx, data.name.toUpperCase(), W / 2, cursorY, {
+    font: `800 ${Math.round(W * 0.065)}px "Inter", sans-serif`,
+    color: TROPICAL.white,
+    align: "center",
+  });
+
+  // --- boarding-pass style journey line ---
+  cursorY += W * 0.05;
+  const origin = (data.origin ?? "REMOTE").toUpperCase();
+  drawText(ctx, `FROM: ${origin}  ✈  TO: GOA`, W / 2, cursorY, {
+    font: `600 ${Math.round(W * 0.024)}px "Courier New", monospace`,
+    color: TROPICAL.gold,
     align: "center",
     letterSpacing: 1,
   });
 
-  drawTitlePill(ctx, data.title, W / 2, textTop + W * 0.095, Math.round(W * 0.03));
-
-  drawText(ctx, "AI × CRYPTO · MULTICHAIN", W / 2, H - H * 0.075, {
-    font: `600 ${Math.round(W * 0.02)}px "Inter", sans-serif`,
-    color: PALETTE.violet,
+  // --- stack line ---
+  cursorY += W * 0.04;
+  drawText(ctx, data.stack ?? data.title, W / 2, cursorY, {
+    font: `500 ${Math.round(W * 0.022)}px "Inter", sans-serif`,
+    color: TROPICAL.lightGreen,
     align: "center",
-    letterSpacing: 2,
   });
 
-  drawText(ctx, "HACKER HOUSE · GOA, INDIA", W / 2, H - H * 0.05, {
-    font: `600 ${Math.round(W * 0.022)}px "Inter", sans-serif`,
-    color: PALETTE.cyan,
-    align: "center",
-    letterSpacing: 2.5,
-  });
+  // --- dynamic AI title pill ---
+  drawGlowPill(ctx, data.title, W / 2, cursorY + W * 0.09, Math.round(W * 0.03));
 
-  drawText(ctx, "28–31 OCT 2026", W / 2, H - H * 0.028, {
-    font: `500 ${Math.round(W * 0.018)}px "Inter", sans-serif`,
-    color: PALETTE.muted,
-    align: "center",
-    letterSpacing: 1.5,
-  });
+  // --- footer: barcode + tagline ---
+  const barcodeW = W * 0.7;
+  const barcodeH = H * 0.03;
+  drawBarcode(ctx, (W - barcodeW) / 2, H - H * 0.09, barcodeW, barcodeH);
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.font = `600 ${Math.round(W * 0.02)}px "Inter", sans-serif`;
+  const footerY = H - H * 0.045;
+  const part1 = "🌴 #FrameInGoa ";
+  const part2 = "⚡ @HackerHouseGoa";
+  const w1 = ctx.measureText(part1).width;
+  const w2 = ctx.measureText(part2).width;
+  const startX = W / 2 - (w1 + w2) / 2;
+  ctx.textAlign = "left";
+  ctx.fillStyle = TROPICAL.white;
+  ctx.fillText(part1, startX, footerY);
+  ctx.fillStyle = TROPICAL.neonGreen;
+  ctx.fillText(part2, startX + w1, footerY);
+  ctx.restore();
 
   ctx.restore();
 
-  // outer edge stroke (drawn after restore, unclipped, so it traces the notch silhouette cleanly)
   if (isPortrait) {
     ctx.save();
     clipTicketShape(ctx, W, H, W * 0.03);
-    ctx.strokeStyle = PALETTE.cyan;
-    ctx.lineWidth = W * 0.004;
-    ctx.stroke();
+    drawGradientBorder(ctx, W, H);
     ctx.restore();
+  } else {
+    drawGradientBorder(ctx, W, H);
   }
 
   return canvas;
