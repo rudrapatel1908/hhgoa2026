@@ -267,6 +267,28 @@ function drawTitlePill(
   ctx.fillText(text, cx, y);
 }
 
+/** Clips a rounded-rect canvas region and punches a semicircular notch in the top edge, like a lanyard card. */
+function clipTicketShape(ctx: CanvasRenderingContext2D, W: number, H: number, radius: number) {
+  const notchR = W * 0.032;
+  const notchY = H * 0.018;
+
+  ctx.beginPath();
+  ctx.moveTo(radius, 0);
+  ctx.lineTo(W / 2 - notchR - 4, 0);
+  // notch cut (arc drawn "into" the card, counter-clockwise so it subtracts)
+  ctx.arc(W / 2, notchY, notchR, Math.PI, 0, true);
+  ctx.lineTo(W - radius, 0);
+  ctx.arcTo(W, 0, W, radius, radius);
+  ctx.lineTo(W, H - radius);
+  ctx.arcTo(W, H, W - radius, H, radius);
+  ctx.lineTo(radius, H);
+  ctx.arcTo(0, H, 0, H - radius, radius);
+  ctx.lineTo(0, radius);
+  ctx.arcTo(0, 0, radius, 0, radius);
+  ctx.closePath();
+  ctx.clip();
+}
+
 function renderToCanvas(
   data: CardData,
   size: { width: number; height: number }
@@ -274,6 +296,11 @@ function renderToCanvas(
   const { canvas, ctx } = createCanvas(size.width, size.height);
   const { width: W, height: H } = size;
   const isPortrait = W < H;
+
+  ctx.save();
+  if (isPortrait) {
+    clipTicketShape(ctx, W, H, W * 0.03);
+  }
 
   // --- background: near-black gradient, matching hhgoa.com's dark base ---
   const bg = ctx.createLinearGradient(0, 0, 0, H);
@@ -356,6 +383,120 @@ function renderToCanvas(
     align: "center",
     letterSpacing: 1.5,
   });
+
+  ctx.restore();
+
+  // outer edge stroke (drawn after restore, unclipped, so it traces the notch silhouette cleanly)
+  if (isPortrait) {
+    ctx.save();
+    clipTicketShape(ctx, W, H, W * 0.03);
+    ctx.strokeStyle = PALETTE.cyan;
+    ctx.lineWidth = W * 0.004;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  return canvas;
+}
+
+/** Available PFP template styles — id must match what's shown in the picker UI. */
+export const PFP_TEMPLATES = [
+  { id: "circuit", name: "Circuit Ring", accent: PALETTE.cyan },
+  { id: "neural", name: "Neural Violet", accent: PALETTE.violet },
+  { id: "pulse", name: "Signal Pulse", accent: "gradient" as const },
+] as const;
+
+export type PfpTemplateId = (typeof PFP_TEMPLATES)[number]["id"];
+
+const PFP_SIZE = { width: 1080, height: 1080 };
+
+/** Renders a circular profile-picture frame at the given template style. */
+export function renderPfpCanvas(photo: HTMLImageElement, templateId: PfpTemplateId) {
+  const { canvas, ctx } = createCanvas(PFP_SIZE.width, PFP_SIZE.height);
+  const W = PFP_SIZE.width;
+  const H = PFP_SIZE.height;
+  const cx = W / 2;
+  const cy = H / 2;
+  const outerR = W * 0.46;
+  const photoR = W * 0.38;
+
+  // background
+  const bg = ctx.createRadialGradient(cx, cy, outerR * 0.3, cx, cy, outerR);
+  bg.addColorStop(0, PALETTE.bgBottom);
+  bg.addColorStop(1, PALETTE.bgTop);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // template-specific ring
+  if (templateId === "circuit") {
+    // dashed cyan ring with small node ticks
+    ctx.strokeStyle = PALETTE.cyan;
+    ctx.lineWidth = W * 0.006;
+    ctx.setLineDash([W * 0.015, W * 0.012]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const nodeCount = 24;
+    for (let i = 0; i < nodeCount; i++) {
+      const angle = (i / nodeCount) * Math.PI * 2;
+      const nx = cx + Math.cos(angle) * outerR;
+      const ny = cy + Math.sin(angle) * outerR;
+      ctx.fillStyle = i % 3 === 0 ? PALETTE.violet : PALETTE.cyan;
+      ctx.beginPath();
+      ctx.arc(nx, ny, W * 0.004, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (templateId === "neural") {
+    // web of thin violet lines radiating from ring to a few points, like a neural net
+    ctx.strokeStyle = `${PALETTE.violet}66`;
+    ctx.lineWidth = W * 0.0015;
+    const pointCount = 16;
+    const points: [number, number][] = [];
+    for (let i = 0; i < pointCount; i++) {
+      const angle = (i / pointCount) * Math.PI * 2;
+      points.push([cx + Math.cos(angle) * outerR, cy + Math.sin(angle) * outerR]);
+    }
+    for (let i = 0; i < points.length; i++) {
+      for (let j = i + 1; j < points.length; j++) {
+        if (Math.random() > 0.85) {
+          ctx.beginPath();
+          ctx.moveTo(points[i][0], points[i][1]);
+          ctx.lineTo(points[j][0], points[j][1]);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.strokeStyle = PALETTE.violet;
+    ctx.lineWidth = W * 0.007;
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+    ctx.stroke();
+    points.forEach(([px, py]) => {
+      ctx.fillStyle = PALETTE.violet;
+      ctx.beginPath();
+      ctx.arc(px, py, W * 0.006, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  } else {
+    // pulse: smooth cyan-to-violet gradient ring, glow-styled
+    const ringGrad = ctx.createLinearGradient(cx - outerR, cy, cx + outerR, cy);
+    ringGrad.addColorStop(0, PALETTE.cyan);
+    ringGrad.addColorStop(1, PALETTE.violet);
+    ctx.strokeStyle = ringGrad;
+    ctx.lineWidth = W * 0.014;
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // photo, clipped to circle
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, photoR, 0, Math.PI * 2);
+  ctx.clip();
+  drawCoverImage(ctx, photo, cx - photoR, cy - photoR, photoR * 2, photoR * 2);
+  ctx.restore();
 
   return canvas;
 }
