@@ -27,9 +27,18 @@ function isRateLimited(ip: string): boolean {
   return timestamps.length > MAX_PER_WINDOW;
 }
 
+// This store was connected with a custom "HHGOA_PUBLIC" prefix, so Vercel
+// injects HHGOA_PUBLIC_STORE_ID (and OIDC credentials) automatically at
+// runtime once the store is connected to this project — no manual token
+// copy-paste needed for deployed environments.
+const BLOB_STORE_ID = process.env.HHGOA_PUBLIC_STORE_ID;
+// Fallback for local `npm run dev`, where OIDC isn't available — paste a
+// read-write token into .env.local under this name if you want local testing.
+const BLOB_TOKEN = process.env.HHGOA_PUBLIC_READ_WRITE_TOKEN;
+
 export async function POST(req: NextRequest) {
   try {
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    if (!BLOB_STORE_ID && !BLOB_TOKEN) {
       return NextResponse.json({ error: "Storage not configured" }, { status: 503 });
     }
 
@@ -66,17 +75,16 @@ export async function POST(req: NextRequest) {
 
     const id = nanoid(8);
 
+    const blobOptions = {
+      access: "public" as const,
+      addRandomSuffix: false,
+      contentType: "image/png",
+      ...(BLOB_STORE_ID ? { storeId: BLOB_STORE_ID } : { token: BLOB_TOKEN }),
+    };
+
     const [cardBlob, ogBlob] = await Promise.all([
-      put(`cards/${id}.png`, card, {
-        access: "public",
-        addRandomSuffix: false,
-        contentType: "image/png",
-      }),
-      put(`cards/${id}-og.png`, og, {
-        access: "public",
-        addRandomSuffix: false,
-        contentType: "image/png",
-      }),
+      put(`cards/${id}.png`, card, blobOptions),
+      put(`cards/${id}-og.png`, og, blobOptions),
     ]);
 
     return NextResponse.json({
