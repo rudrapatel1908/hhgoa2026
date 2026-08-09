@@ -27,18 +27,13 @@ function isRateLimited(ip: string): boolean {
   return timestamps.length > MAX_PER_WINDOW;
 }
 
-// This store was connected with a custom "HHGOA_PUBLIC" prefix, so Vercel
-// injects HHGOA_PUBLIC_STORE_ID (and OIDC credentials) automatically at
-// runtime once the store is connected to this project — no manual token
-// copy-paste needed for deployed environments.
-const BLOB_STORE_ID = process.env.HHGOA_PUBLIC_STORE_ID;
-// Fallback for local `npm run dev`, where OIDC isn't available — paste a
-// read-write token into .env.local under this name if you want local testing.
+// Blob store is connected to this project under the HHGOA_PUBLIC prefix
+// (chosen at store-creation time) — this is the actual token that exists.
 const BLOB_TOKEN = process.env.HHGOA_PUBLIC_READ_WRITE_TOKEN;
 
 export async function POST(req: NextRequest) {
   try {
-    if (!BLOB_STORE_ID && !BLOB_TOKEN) {
+    if (!BLOB_TOKEN) {
       return NextResponse.json({ error: "Storage not configured" }, { status: 503 });
     }
 
@@ -79,7 +74,7 @@ export async function POST(req: NextRequest) {
       access: "public" as const,
       addRandomSuffix: false,
       contentType: "image/png",
-      ...(BLOB_STORE_ID ? { storeId: BLOB_STORE_ID } : { token: BLOB_TOKEN }),
+      token: BLOB_TOKEN,
     };
 
     const [cardBlob, ogBlob] = await Promise.all([
