@@ -109,11 +109,11 @@ export default function UploadDropzone({ onImageReady }: Props) {
         onDrop={onDrop}
         onClick={() => !previewUrl && fileInputRef.current?.click()}
         animate={{
-          borderColor: isDragging ? "#D6247C" : "#8A6E1F",
+          borderColor: isDragging ? "#8B5CF6" : "#1B5A66",
           scale: isDragging ? 1.01 : 1,
         }}
         transition={{ duration: 0.15 }}
-        className="relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed bg-[#0C0F0B] text-center"
+        className="relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed bg-[#0E1018] text-center"
       >
         <AnimatePresence mode="wait">
           {previewUrl ? (
@@ -136,7 +136,7 @@ export default function UploadDropzone({ onImageReady }: Props) {
                   e.stopPropagation();
                   reset();
                 }}
-                className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-[#F5F2E8] backdrop-blur"
+                className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-[#E8EDF5] backdrop-blur"
               >
                 <RotateCcw size={14} /> Change photo
               </button>
@@ -149,8 +149,8 @@ export default function UploadDropzone({ onImageReady }: Props) {
               exit={{ opacity: 0 }}
               className="flex flex-col items-center gap-3 px-6"
             >
-              <Loader2 className="animate-spin text-[#E8B923]" size={32} />
-              <p className="text-sm text-[#F5F2E8]/70">Processing your photo…</p>
+              <Loader2 className="animate-spin text-[#00E5FF]" size={32} />
+              <p className="text-sm text-[#E8EDF5]/70">Processing your photo…</p>
             </motion.div>
           ) : status === "error" ? (
             <motion.div
@@ -160,9 +160,9 @@ export default function UploadDropzone({ onImageReady }: Props) {
               exit={{ opacity: 0 }}
               className="flex flex-col items-center gap-3 px-6"
             >
-              <ImageOff className="text-[#D6247C]" size={32} />
-              <p className="text-sm text-[#F5F2E8]/80">{error}</p>
-              <span className="text-xs text-[#F5F2E8]/50">Tap to try again</span>
+              <ImageOff className="text-[#8B5CF6]" size={32} />
+              <p className="text-sm text-[#E8EDF5]/80">{error}</p>
+              <span className="text-xs text-[#E8EDF5]/50">Tap to try again</span>
             </motion.div>
           ) : (
             <motion.div
@@ -172,14 +172,14 @@ export default function UploadDropzone({ onImageReady }: Props) {
               exit={{ opacity: 0 }}
               className="flex flex-col items-center gap-3 px-6"
             >
-              <UploadCloud className="text-[#E8B923]" size={32} />
-              <p className="text-sm font-medium text-[#F5F2E8]">
+              <UploadCloud className="text-[#00E5FF]" size={32} />
+              <p className="text-sm font-medium text-[#E8EDF5]">
                 Drop your photo here
               </p>
-              <p className="text-xs text-[#F5F2E8]/50">
+              <p className="text-xs text-[#E8EDF5]/50">
                 or tap to choose from your gallery
               </p>
-              <div className="mt-1 flex items-center gap-1.5 text-xs text-[#E8B923]/80">
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-[#00E5FF]/80">
                 <Camera size={14} /> Camera & iPhone HEIC supported
               </div>
             </motion.div>

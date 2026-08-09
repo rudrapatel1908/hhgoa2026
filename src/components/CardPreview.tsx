@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Download, Loader2 } from "lucide-react";
-import { renderCardCanvas, downloadCanvas, CardData } from "@/lib/canvas";
+import { renderCardCanvas, downloadCanvas } from "@/lib/canvas";
+import type { CardData } from "@/lib/canvas";
 
 type Props = {
   photo: HTMLImageElement | null;
@@ -47,10 +48,10 @@ export default function CardPreview({ photo, name, title }: Props) {
     <div className="flex w-full flex-col items-center gap-4">
       <div
         ref={containerRef}
-        className="flex aspect-[4/5] w-full max-w-sm items-center justify-center overflow-hidden rounded-2xl border border-[#8A6E1F]/30 bg-[#0C0F0B]"
+        className="flex aspect-[4/5] w-full max-w-sm items-center justify-center overflow-hidden rounded-2xl border border-[#1B5A66]/30 bg-[#0E1018]"
       >
         {!isReady && (
-          <p className="px-8 text-center text-sm text-[#F5F2E8]/40">
+          <p className="px-8 text-center text-sm text-[#E8EDF5]/40">
             Add a photo and your details to see your card
           </p>
         )}
@@ -63,7 +64,7 @@ export default function CardPreview({ photo, name, title }: Props) {
           type="button"
           onClick={handleDownload}
           disabled={downloading}
-          className="flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-[#E8B923] px-6 py-3 font-semibold text-[#07090C] transition-opacity disabled:opacity-60"
+          className="flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-[#00E5FF] px-6 py-3 font-semibold text-[#0A0D14] transition-opacity disabled:opacity-60"
         >
           {downloading ? (
             <Loader2 size={18} className="animate-spin" />

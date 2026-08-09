@@ -50,7 +50,7 @@ export default function CardSharePage({ params }: Props) {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center gap-6 px-5 py-10 text-center">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#E8B923]">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#00E5FF]">
         Hacker House · Goa, India
       </p>
 
@@ -58,13 +58,13 @@ export default function CardSharePage({ params }: Props) {
       <img
         src={cardImageUrl(id)}
         alt="Hacker House Goa 2026 builder ID card"
-        className="w-full max-w-sm rounded-2xl border border-[#8A6E1F]/30"
+        className="w-full max-w-sm rounded-2xl border border-[#1B5A66]/30"
       />
 
       <a
         href={cardImageUrl(id)}
         download={`hhgoa2026-${id}.png`}
-        className="flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-[#E8B923] px-6 py-3 font-semibold text-[#07090C]"
+        className="flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-[#00E5FF] px-6 py-3 font-semibold text-[#0A0D14]"
       >
         <Download size={18} />
         Download this card
@@ -72,7 +72,7 @@ export default function CardSharePage({ params }: Props) {
 
       <Link
         href="/"
-        className="text-sm font-medium text-[#F5F2E8]/60 underline underline-offset-4"
+        className="text-sm font-medium text-[#E8EDF5]/60 underline underline-offset-4"
       >
         Build your own badge →
       </Link>

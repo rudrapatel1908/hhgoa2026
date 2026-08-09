@@ -70,7 +70,7 @@ export default function ShareButtons({ photo, name, title }: Props) {
             type="button"
             onClick={handleShare}
             disabled={status === "uploading"}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#8A6E1F]/50 bg-transparent px-6 py-3 font-semibold text-[#F5F2E8] transition-opacity disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#1B5A66]/50 bg-transparent px-6 py-3 font-semibold text-[#E8EDF5] transition-opacity disabled:opacity-60"
           >
             {status === "uploading" ? (
               <>
@@ -90,7 +90,7 @@ export default function ShareButtons({ photo, name, title }: Props) {
             href={tweetUrl(shareUrl!)}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1DA1F2] px-6 py-3 font-semibold text-white"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#000000] px-6 py-3 font-semibold text-white"
           >
             <Send size={18} /> Share to X
           </motion.a>
@@ -98,14 +98,14 @@ export default function ShareButtons({ photo, name, title }: Props) {
       </AnimatePresence>
 
       {status === "ready" && shareUrl && (
-        <div className="flex items-center gap-1.5 text-xs text-[#F5F2E8]/50">
-          <Check size={14} className="text-[#7C9A6E]" />
+        <div className="flex items-center gap-1.5 text-xs text-[#E8EDF5]/50">
+          <Check size={14} className="text-[#39FF88]" />
           Link ready — the X card preview will show your badge
         </div>
       )}
 
       {status === "error" && (
-        <p className="text-center text-xs text-[#D6247C]">{error}</p>
+        <p className="text-center text-xs text-[#8B5CF6]">{error}</p>
       )}
     </div>
   );

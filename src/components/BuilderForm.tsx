@@ -61,7 +61,7 @@ export default function BuilderForm({ onChange }: Props) {
   return (
     <div className="flex w-full flex-col gap-5">
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="name" className="text-xs font-medium uppercase tracking-wider text-[#F5F2E8]/60">
+        <label htmlFor="name" className="text-xs font-medium uppercase tracking-wider text-[#E8EDF5]/60">
           Name
         </label>
         <input
@@ -70,12 +70,12 @@ export default function BuilderForm({ onChange }: Props) {
           onChange={(e) => setName(e.target.value)}
           maxLength={32}
           placeholder="Rudra Patel"
-          className="rounded-xl border border-[#8A6E1F]/40 bg-[#0C0F0B] px-4 py-3 text-[#F5F2E8] placeholder:text-[#F5F2E8]/30 outline-none focus:border-[#E8B923] focus:ring-1 focus:ring-[#E8B923]"
+          className="rounded-xl border border-[#1B5A66]/40 bg-[#0E1018] px-4 py-3 text-[#E8EDF5] placeholder:text-[#E8EDF5]/30 outline-none focus:border-[#00E5FF] focus:ring-1 focus:ring-[#00E5FF]"
         />
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="stack" className="text-xs font-medium uppercase tracking-wider text-[#F5F2E8]/60">
+        <label htmlFor="stack" className="text-xs font-medium uppercase tracking-wider text-[#E8EDF5]/60">
           Stack / Role
         </label>
         <input
@@ -84,7 +84,7 @@ export default function BuilderForm({ onChange }: Props) {
           onChange={(e) => setStack(e.target.value)}
           maxLength={40}
           placeholder="Full-stack, React + FastAPI"
-          className="rounded-xl border border-[#8A6E1F]/40 bg-[#0C0F0B] px-4 py-3 text-[#F5F2E8] placeholder:text-[#F5F2E8]/30 outline-none focus:border-[#E8B923] focus:ring-1 focus:ring-[#E8B923]"
+          className="rounded-xl border border-[#1B5A66]/40 bg-[#0E1018] px-4 py-3 text-[#E8EDF5] placeholder:text-[#E8EDF5]/30 outline-none focus:border-[#00E5FF] focus:ring-1 focus:ring-[#00E5FF]"
         />
       </div>
 
@@ -94,17 +94,17 @@ export default function BuilderForm({ onChange }: Props) {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col gap-2"
         >
-          <span className="text-xs font-medium uppercase tracking-wider text-[#F5F2E8]/60">
+          <span className="text-xs font-medium uppercase tracking-wider text-[#E8EDF5]/60">
             Your builder class
           </span>
-          <div className="flex items-center justify-between rounded-xl bg-[#D6247C] px-4 py-3">
-            <span className="font-semibold text-[#F5F2E8]">{title}</span>
+          <div className="flex items-center justify-between rounded-xl bg-[#8B5CF6] px-4 py-3">
+            <span className="font-semibold text-[#E8EDF5]">{title}</span>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={shuffleLocal}
                 title="Shuffle title"
-                className="rounded-lg p-1.5 text-[#F5F2E8]/80 hover:bg-black/15"
+                className="rounded-lg p-1.5 text-[#E8EDF5]/80 hover:bg-black/15"
               >
                 <Shuffle size={16} />
               </button>
@@ -113,7 +113,7 @@ export default function BuilderForm({ onChange }: Props) {
                 onClick={regenerateWithAI}
                 disabled={aiLoading}
                 title="Regenerate with AI"
-                className="rounded-lg p-1.5 text-[#F5F2E8]/80 hover:bg-black/15 disabled:opacity-50"
+                className="rounded-lg p-1.5 text-[#E8EDF5]/80 hover:bg-black/15 disabled:opacity-50"
               >
                 {aiLoading ? (
                   <Loader2 size={16} className="animate-spin" />

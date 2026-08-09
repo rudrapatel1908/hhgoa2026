@@ -165,56 +165,71 @@ function drawText(
  */
 // HH Goa 2026 palette — dark hacker base (matches hhgoa.com) with
 // gold/magenta accents pulled from the event's Goan motif artwork.
+// HH Goa 2026 palette — "AI × Crypto. Multichain. Goa." theme:
+// electric cyan reads as AI/neural, violet reads as crypto/chain,
+// dark base matches the hacker aesthetic of hhgoa.com.
 const PALETTE = {
-  bgTop: "#12150F",
-  bgBottom: "#1A1D14",
-  gold: "#E8B923",
-  goldDim: "#8A6E1F",
-  magenta: "#D6247C",
-  sage: "#7C9A6E",
-  white: "#F5F2E8",
-  muted: "#6B6F63",
+  bgTop: "#0A0D14",
+  bgBottom: "#12111C",
+  cyan: "#00E5FF",
+  cyanDim: "#1B5A66",
+  violet: "#8B5CF6",
+  lime: "#39FF88",
+  white: "#E8EDF5",
+  muted: "#5B6472",
 };
 
-/** Draws the gold dotted-trim border in the style of the event's poster art. */
-function drawGoldBorder(ctx: CanvasRenderingContext2D, W: number, H: number) {
+/** Draws a circuit-trace border: nodes connected by short lines, reading as a PCB/neural trace. */
+function drawCircuitBorder(ctx: CanvasRenderingContext2D, W: number, H: number) {
   const inset = W * 0.035;
-  const dotSpacing = W * 0.018;
-  const dotRadius = W * 0.0028;
+  const nodeSpacing = W * 0.05;
+  const nodeRadius = W * 0.0035;
 
-  ctx.fillStyle = PALETTE.gold;
-  // top & bottom rows of dots
-  for (let x = inset; x <= W - inset; x += dotSpacing) {
+  ctx.strokeStyle = PALETTE.cyanDim;
+  ctx.lineWidth = Math.max(1, W * 0.0012);
+
+  // top and bottom trace lines with nodes
+  for (let x = inset; x <= W - inset; x += nodeSpacing) {
     ctx.beginPath();
-    ctx.arc(x, inset, dotRadius, 0, Math.PI * 2);
+    ctx.moveTo(x, inset);
+    ctx.lineTo(Math.min(x + nodeSpacing * 0.55, W - inset), inset);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, H - inset);
+    ctx.lineTo(Math.min(x + nodeSpacing * 0.55, W - inset), H - inset);
+    ctx.stroke();
+
+    ctx.fillStyle = PALETTE.cyan;
+    ctx.beginPath();
+    ctx.arc(x, inset, nodeRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(x, H - inset, dotRadius, 0, Math.PI * 2);
+    ctx.arc(x, H - inset, nodeRadius, 0, Math.PI * 2);
     ctx.fill();
   }
-  // left & right columns of dots
-  for (let y = inset; y <= H - inset; y += dotSpacing) {
+
+  // left and right trace lines with nodes
+  for (let y = inset; y <= H - inset; y += nodeSpacing) {
     ctx.beginPath();
-    ctx.arc(inset, y, dotRadius, 0, Math.PI * 2);
+    ctx.moveTo(inset, y);
+    ctx.lineTo(inset, Math.min(y + nodeSpacing * 0.55, H - inset));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(W - inset, y);
+    ctx.lineTo(W - inset, Math.min(y + nodeSpacing * 0.55, H - inset));
+    ctx.stroke();
+
+    ctx.fillStyle = PALETTE.violet;
+    ctx.beginPath();
+    ctx.arc(inset, y, nodeRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(W - inset, y, dotRadius, 0, Math.PI * 2);
+    ctx.arc(W - inset, y, nodeRadius, 0, Math.PI * 2);
     ctx.fill();
   }
-
-  // thin gold rule just inside the dots
-  ctx.strokeStyle = PALETTE.goldDim;
-  ctx.lineWidth = Math.max(1, W * 0.0015);
-  const ruleInset = inset + dotSpacing * 0.9;
-  ctx.strokeRect(
-    ruleInset,
-    ruleInset,
-    W - ruleInset * 2,
-    H - ruleInset * 2
-  );
 }
 
-/** Draws a rounded magenta pill behind the generated title text. */
+/** Draws a rounded gradient pill (cyan-to-violet) behind the generated title text. */
 function drawTitlePill(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -232,7 +247,11 @@ function drawTitlePill(
   const topY = y - fontSize * 0.78 - padY;
   const r = pillH / 2;
 
-  ctx.fillStyle = PALETTE.magenta;
+  const gradient = ctx.createLinearGradient(x, topY, x + pillW, topY);
+  gradient.addColorStop(0, PALETTE.cyan);
+  gradient.addColorStop(1, PALETTE.violet);
+
+  ctx.fillStyle = gradient;
   ctx.beginPath();
   ctx.moveTo(x + r, topY);
   ctx.arcTo(x + pillW, topY, x + pillW, topY + pillH, r);
@@ -242,7 +261,7 @@ function drawTitlePill(
   ctx.closePath();
   ctx.fill();
 
-  ctx.fillStyle = PALETTE.white;
+  ctx.fillStyle = "#0A0D14";
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
   ctx.fillText(text, cx, y);
@@ -263,7 +282,7 @@ function renderToCanvas(
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  drawGoldBorder(ctx, W, H);
+  drawCircuitBorder(ctx, W, H);
 
   // --- photo area ---
   const pad = W * 0.1;
@@ -273,9 +292,9 @@ function renderToCanvas(
   const photoW = photoSize;
   const photoH = photoSize;
 
-  // gold ring behind the photo
+  // cyan ring behind the photo
   ctx.save();
-  ctx.strokeStyle = PALETTE.gold;
+  ctx.strokeStyle = PALETTE.cyan;
   ctx.lineWidth = W * 0.006;
   const radius = 20;
   const ringPad = W * 0.006;
@@ -317,9 +336,16 @@ function renderToCanvas(
 
   drawTitlePill(ctx, data.title, W / 2, textTop + W * 0.095, Math.round(W * 0.03));
 
+  drawText(ctx, "AI × CRYPTO · MULTICHAIN", W / 2, H - H * 0.075, {
+    font: `600 ${Math.round(W * 0.02)}px "Inter", sans-serif`,
+    color: PALETTE.violet,
+    align: "center",
+    letterSpacing: 2,
+  });
+
   drawText(ctx, "HACKER HOUSE · GOA, INDIA", W / 2, H - H * 0.05, {
     font: `600 ${Math.round(W * 0.022)}px "Inter", sans-serif`,
-    color: PALETTE.gold,
+    color: PALETTE.cyan,
     align: "center",
     letterSpacing: 2.5,
   });
