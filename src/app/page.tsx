@@ -8,6 +8,7 @@ import BuilderForm, { BuilderInfo } from "@/components/BuilderForm";
 import CardPreview from "@/components/CardPreview";
 import ShareButtons from "@/components/ShareButtons";
 import PfpPreview from "@/components/PfpPreview";
+import HeroBackground from "@/components/HeroBackground";
 
 type Mode = "card" | "pfp";
 
@@ -25,26 +26,28 @@ export default function HomePage() {
   }, []);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-10 px-5 py-10 md:px-10">
-      {/* Header */}
-      <header className="flex flex-col items-center gap-3 text-center">
-        <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#00E5FF]/40 bg-[#00E5FF]/10 text-sm font-bold text-[#00E5FF]">
-            H
-          </span>
-          <span className="text-lg font-bold tracking-tight text-[#E8EDF5]">
-            HACKER HOUSE
-          </span>
-        </div>
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#8B5CF6]">
-          Goa 2026 · AI × Crypto
-        </p>
-        <h1 className="max-w-xl text-3xl font-bold leading-tight text-[#E8EDF5] md:text-4xl">
-          Your Builder Badge is one upload away
-        </h1>
-        <p className="text-sm text-[#E8EDF5]/50">
-          Photo → Details → Download → <span className="text-[#00E5FF]">#FrameInGoa</span>
-        </p>
+    <>
+      <HeroBackground />
+      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-10 px-5 py-10 md:px-10">
+        {/* Header */}
+        <header className="flex flex-col items-center gap-3 rounded-2xl bg-[#0A0D14]/40 px-6 py-8 text-center backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#00E5FF]/40 bg-[#00E5FF]/10 text-sm font-bold text-[#00E5FF]">
+              H
+            </span>
+            <span className="text-lg font-bold tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+              HACKER HOUSE
+            </span>
+          </div>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#B794F6] drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">
+            Goa 2026 · AI × Crypto
+          </p>
+          <h1 className="max-w-xl text-3xl font-bold leading-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] md:text-4xl">
+            Your Builder Badge is one upload away
+          </h1>
+          <p className="text-sm font-medium text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">
+            Photo → Details → Download → <span className="text-[#00E5FF]">#FrameInGoa</span>
+          </p>
 
         {/* Mode toggle */}
         <div className="mt-2 flex rounded-full border border-[#1B5A66]/40 bg-[#0E1018] p-1">
@@ -81,7 +84,7 @@ export default function HomePage() {
       {/* Two-column layout */}
       <div className="grid gap-8 md:grid-cols-[380px_1fr] md:items-start">
         {/* Left: controls */}
-        <div className="flex flex-col gap-6 rounded-2xl border border-[#1B5A66]/30 bg-[#0E1018]/60 p-5">
+        <div className="flex flex-col gap-6 rounded-2xl border border-[#1B5A66]/40 bg-[#0A0D14]/85 p-5 backdrop-blur-md">
           <div className="flex flex-col gap-3">
             <span className="text-xs font-medium uppercase tracking-wider text-[#E8EDF5]/60">
               Your Photo
@@ -108,7 +111,7 @@ export default function HomePage() {
         </div>
 
         {/* Right: live preview */}
-        <div className="flex flex-col items-center gap-4 rounded-2xl border border-[#1B5A66]/30 bg-[#0E1018]/30 p-6 md:p-10">
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-[#1B5A66]/40 bg-[#0A0D14]/80 p-6 backdrop-blur-md md:p-10">
           <AnimatePresence mode="wait">
             {mode === "card" ? (
               <motion.div
@@ -137,6 +140,7 @@ export default function HomePage() {
           </AnimatePresence>
         </div>
       </div>
-    </main>
+      </main>
+    </>
   );
 }
